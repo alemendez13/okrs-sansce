@@ -1,56 +1,54 @@
-// js/catalogo.js
+// js/catalogo.js --- Reemplaza el bloque fetch completo con esto
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Primero, verifica si el usuario está logueado para poder acceder a esta página
-    if (!localStorage.getItem('user')) {
-        window.location.href = '/index.html';
-        return;
-    }
+fetch('/.netlify/functions/getCatalog')
+    .then(response => response.json())
+    .then(data => {
+        const headers = data[0];
+        const rows = data.slice(1);
 
-    const table = document.getElementById('kpi-table');
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
+        // 1. CREAR ENCABEZADOS VISIBLES (Sin el último)
+        const visibleHeaders = headers.slice(0, -1);
 
-    fetch('/.netlify/functions/getCatalog')
-        .then(response => response.json())
-        .then(data => {
-            const headers = data[0];
-            const rows = data.slice(1);
-
-            // Crear encabezado de la tabla
-            let headerHtml = '<tr>';
-            headers.forEach(header => {
-                headerHtml += `<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">${header}</th>`;
-            });
-            headerHtml += '</tr>';
-            thead.innerHTML = headerHtml;
-
-            // Crear filas de la tabla
-            let bodyHtml = '';
-            rows.forEach(row => {
-                bodyHtml += '<tr>';
-                row.forEach((cell, index) => {
-                    let cellClass = '';
-                    // Asigna clases basadas en el índice de la columna
-                    switch (index) {
-                        case 0: // KPI_ID
-                            cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6';
-                            break;
-                        case 2: // Descripcion
-                            // MODIFICACIÓN: Se quita whitespace-nowrap y se permite el ajuste de línea
-                            cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal max-w-md';
-                            break;
-                        default: // Otras columnas
-                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500';
-                    }
-                    bodyHtml += `<td class="${cellClass}">${cell}</td>`;
-                });
-                bodyHtml += '</tr>';
-            });
-            tbody.innerHTML = bodyHtml;
-        })
-        .catch(error => {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Error al cargar el catálogo.</td></tr>';
-            console.error('Error:', error);
+        // 2. CONSTRUIR EL HEADER DE LA TABLA
+        let headerHtml = '<tr>';
+        // Se itera sobre los encabezados ya filtrados
+        visibleHeaders.forEach(header => {
+            headerHtml += `<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">${header}</th>`;
         });
-});
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
+
+        // 3. CONSTRUIR LAS FILAS DE LA TABLA
+        let bodyHtml = '';
+        rows.forEach(row => {
+            bodyHtml += '<tr>';
+
+            // 4. CREAR CELDAS VISIBLES (Sin la última celda de cada fila)
+            const visibleCells = row.slice(0, -1);
+
+            // 5. Se itera sobre las celdas ya filtradas
+            visibleCells.forEach((cell, index) => {
+                let cellClass = '';
+                // Tu lógica de estilos personalizada se mantiene intacta
+                switch (index) {
+                    case 0: // KPI_ID
+                        cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6';
+                        break;
+                    case 2: // Descripcion
+                        cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal max-w-md';
+                        break;
+                    default: // Otras columnas
+                        cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500';
+                }
+                bodyHtml += `<td class="${cellClass}">${cell}</td>`;
+            });
+            bodyHtml += '</tr>';
+        });
+        tbody.innerHTML = bodyHtml;
+    })
+    .catch(error => {
+        // 6. CORREGIR EL COLSPAN
+        // Ahora son 5 columnas visibles, no 6
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Error al cargar el catálogo.</td></tr>';
+        console.error('Error:', error);
+    });
