@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Indicadores de desempeño PMR-FR-04 </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-slate-50">
+
+<header class="bg-white shadow-sm">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 justify-between">
+            <div class="flex items-center">
+                <img class="h-10 w-auto" src="/images/logo.png" alt="Logo de la Empresa">
+                <h1 id="header-title" class="ml-4 text-xl font-bold text-slate-800">Resultados de la Empresa</h1>
+            </div>
+            <div id="nav-container" class="flex items-center space-x-4">
+                </div>
+        </div>
+    </div>
+</header>
+
+    <main class="py-10">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            
+            <div class="mb-8 rounded-lg bg-white p-6 shadow">
+                <h2 class="text-lg font-semibold leading-6 text-slate-900">Eficacia vs Propósito</h2>
+                <div class="mt-4">
+                    <canvas id="myChart"></canvas>
+                </div>
+            </div>
+
+            <div class="rounded-lg bg-white p-6 shadow">
+                <h2 class="text-lg font-semibold leading-6 text-slate-900">Datos Recibidos (Debug)</h2>
+                <pre id="rawData" class="mt-4 overflow-x-auto rounded bg-slate-100 p-4 text-sm"></pre>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="/js/empresa.js"></script>
+
+</body>
+</html>

@@ -1,9 +1,9 @@
+// netlify/functions/getData.js
+
 const { google } = require('googleapis');
 
-// Función auxiliar para convertir los datos de la hoja en un arreglo de objetos.
-// Esto hace que el código sea mucho más fácil de leer y manejar.
 const sheetDataToObject = (rows) => {
-  if (!rows || rows.length < 2) return []; // Si no hay datos o solo encabezados, devuelve vacío
+  if (!rows || rows.length < 2) return [];
   const headers = rows[0];
   return rows.slice(1).map(row => {
     const dataObject = {};
@@ -15,63 +15,88 @@ const sheetDataToObject = (rows) => {
 };
 
 exports.handler = async function (event, context) {
-
-try {
-    // 1. Obtiene los parámetros de la URL (enviados desde el fetch)
+  try {
     const { rol, userID } = event.queryStringParameters;
 
-    // 2. Autenticación con Google Sheets
-
     const auth = new google.auth.GoogleAuth({
-        credentials: {
+      credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
         private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+      },
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
 
-  const sheets = google.sheets({ version: 'v4', auth });
+    const sheets = google.sheets({ version: 'v4', auth });
 
-    // 3. Lee TODAS las hojas de datos necesarias a la vez
-    const [resultsResponse, usersResponse] = await Promise.all([
+    // --- INICIO DE LA MODIFICACIÓN 1: Leer también el catálogo ---
+    const [resultsResponse, usersResponse, catalogResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        range: 'Resultados!A:E', // Asegúrate que el rango cubra tus columnas
+        range: 'Resultados!A:E',
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
         range: 'Usuarios!A:E',
-      })
+      }),
+      // Añadimos la lectura de la hoja CatalogoKPIs
+      sheets.spreadsheets.values.get({
+        spreadsheetId: process.env.GOOGLE_SHEET_ID,
+        range: 'CatalogoKPIs!A:F',
+      }),
     ]);
 
     const allResults = sheetDataToObject(resultsResponse.data.values);
     const allUsers = sheetDataToObject(usersResponse.data.values);
+    const kpiCatalog = sheetDataToObject(catalogResponse.data.values);
+    // --- FIN DE LA MODIFICACIÓN 1 ---
 
     let filteredResults = [];
 
-    // 4. Lógica de filtrado basada en el rol
-    if (rol === 'admin') {
-      // El admin ve todo
-      filteredResults = allResults;
-    } else if (rol === 'coordinador') {
-      // El coordinador ve los suyos y los de su equipo.
-      const coordinator = allUsers.find(u => u.UserID === userID);
-      const teamIDs = allUsers
-        .filter(u => u.EquipoID === coordinator.EquipoID)
-        .map(u => u.UserID);
+    if (rol === 'admin' || rol === 'coordinador') {
+        // La lógica para admin y coordinador no cambia, devuelven los valores numéricos.
+        let resultsForRole = allResults;
+        if (rol === 'coordinador') {
+            const coordinator = allUsers.find(u => u.UserID === userID);
+            if(coordinator) {
+                const teamIDs = allUsers
+                    .filter(u => u.EquipoID === coordinator.EquipoID)
+                    .map(u => u.UserID);
+                resultsForRole = allResults.filter(result => teamIDs.includes(result.UserID));
+            } else {
+                resultsForRole = [];
+            }
+        }
+        filteredResults = resultsForRole;
 
-      filteredResults = allResults.filter(result => teamIDs.includes(result.UserID));
     } else if (rol === 'general') {
-      // El usuario general solo ve sus propios resultados
-      filteredResults = allResults.filter(result => result.UserID === userID);
+      const userResults = allResults.filter(result => result.UserID === userID);
+
+      // --- INICIO DE LA MODIFICACIÓN 2: Calcular porcentaje para KPIs financieros ---
+      filteredResults = userResults.map(result => {
+        const kpiInfo = kpiCatalog.find(kpi => kpi.KPI_ID === result.KPI_ID);
+        
+        // Verifica si el KPI es financiero
+        if (kpiInfo && (kpiInfo.EsFinanciero === 'TRUE' || kpiInfo.EsFinanciero === 'SI')) {
+          // Limpia los valores de meta y resultado para convertirlos a números
+          const meta = parseFloat(String(result.Meta).replace(/[^0-9.-]+/g, ""));
+          const valor = parseFloat(String(result.Valor).replace(/[^0-9.-]+/g, ""));
+          
+          // Calcula el porcentaje de logro
+          const achievement = meta > 0 ? (valor / meta) * 100 : 0;
+          
+          // Crea una copia del resultado y reemplaza el 'Valor' por el porcentaje formateado
+          return { ...result, Valor: achievement.toFixed(2) + '%' };
+        }
+        
+        // Si no es financiero, devuelve el resultado sin cambios
+        return result;
+      });
+      // --- FIN DE LA MODIFICACIÓN 2 ---
     }
 
-    // 5. Convierte los objetos de vuelta a un arreglo de arreglos para Chart.js
-    // Mantenemos el formato original que espera el frontend (encabezados + filas)
     const headers = resultsResponse.data.values[0];
-    const dataForFrontend = [headers, ...filteredResults.map(row => Object.values(row))];
+    const dataForFrontend = [headers, ...filteredResults.map(row => headers.map(header => row[header]))];
     
-    // 6. Devuelve los datos ya filtrados
     return {
       statusCode: 200,
       body: JSON.stringify(dataForFrontend),
