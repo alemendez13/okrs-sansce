@@ -1,8 +1,9 @@
 // js/auth.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('loginForm');
-    const errorMessage = document.getElementById('errorMessage');
+    const loginForm = document.getElementById('login-form');
+    const errorMessage = document.getElementById('error-message');
+    // ---- FIN DE LA MODIFICACIÓN ----
 
     loginForm.addEventListener('submit', async (event) => {
         // Evita que la página se recargue al enviar el formulario
