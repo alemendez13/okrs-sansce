@@ -7,10 +7,55 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // --- INICIO DE LA CORRECCIÓN ---
+    // Añade esta línea para obtener los datos del usuario
+    const user = JSON.parse(localStorage.getItem('user'));
+    // --- FIN DE LA CORRECCIÓN ---
+
     // Estas constantes se definen aquí, al inicio del listener
     const table = document.getElementById('kpi-table');
     const thead = table.querySelector('thead');
     const tbody = table.querySelector('tbody');
+
+    // --- INICIO DE LA MODIFICACIÓN ---
+
+    const navContainer = document.getElementById('nav-container');
+    const headerTitle = document.getElementById('header-title');
+    
+    // Función para construir el menú
+    function buildNavigation(role) {
+        let navLinks = `
+            <a href="/dashboard.html" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Mi Desempeño</a>
+            <a href="/catalogo.html" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Catálogo</a>
+        `;
+
+        if (role === 'coordinador') {
+            navLinks += `<a href="/procesos.html" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Resultados de Procesos</a>`;
+        }
+
+        if (role === 'admin') {
+            navLinks += `
+                <a href="/procesos.html" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Resultados de Procesos</a>
+                <a href="/empresa.html" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Resultados de la Empresa</a>
+            `;
+        }
+        
+        // Botón para cerrar sesión
+        navLinks += `<button id="logout-btn" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Cerrar Sesión</button>`;
+
+        navContainer.innerHTML = navLinks;
+
+        // Añadir funcionalidad al botón de logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('user');
+            window.location.href = '/index.html';
+        });
+    }
+
+    buildNavigation(user.Rol);
+    headerTitle.textContent = `Bienvenido, ${user.NombreCompleto}`;
+
+    // --- FIN DE LA MODIFICACIÓN ---
 
     // Toda la lógica 'fetch' debe estar DENTRO de este listener
     fetch('/.netlify/functions/getCatalog')
