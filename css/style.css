@@ -24,3 +24,42 @@ h1 {
 #myChart {
     margin-top: 30px;
 }
+
+/* --- ESTILOS PARA LOGOS (AÑADIR AL FINAL) --- */
+
+/* Contenedor del logo en la página de login */
+.logo-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Estilo del logo en la página de login */
+.logo {
+    max-width: 150px; /* Ajusta el tamaño según necesites */
+    height: auto;
+}
+
+/* Encabezado del dashboard */
+.dashboard-header {
+    background-color: #ffffff;
+    padding: 10px 40px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-header h1 {
+    margin: 0 0 0 20px; /* Mueve el título a la derecha del logo */
+    font-size: 1.5em;
+}
+
+/* Estilo del logo pequeño en el dashboard */
+.logo-small {
+    max-height: 40px; /* Ajusta la altura según necesites */
+    width: auto;
+}
+
+/* Ajusta el contenedor principal del dashboard para que no quede pegado al header */
+.dashboard-container {
+    margin-top: 20px;
+}
