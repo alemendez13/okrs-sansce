@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Dashboard KPIs</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f4; }
+        form { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input { display: block; width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; }
+        button { width: 100%; padding: 10px; border: none; background-color: #007bff; color: white; border-radius: 4px; cursor: pointer; }
+        #errorMessage { color: red; margin-top: 15px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <form id="loginForm">
+        <h2>Acceso al Dashboard</h2>
+        <input type="email" id="email" placeholder="Ingresa tu correo electrónico" required>
+        <button type="submit">Ingresar</button>
+        <p id="errorMessage" style="display: none;"></p>
+    </form>
+
+    <script src="/js/auth.js"></script>
+
+</body>
+</html>
