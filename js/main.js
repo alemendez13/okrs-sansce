@@ -39,66 +39,100 @@ window.addEventListener('DOMContentLoaded', () => {
     buildNavigation(user.Rol);
     headerTitle.textContent = `Bienvenido, ${user.NombreCompleto}`;
 
-    fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
+    // --- START OF MAJOR MODIFICATION ---
+    const kpiContainer = document.getElementById('kpi-container');
+    const rawDataContainer = document.getElementById('rawData');
+
+fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
     .then(response => response.json())
     .then(data => {
-      const dataContainer = document.getElementById('rawData');
-      dataContainer.textContent = JSON.stringify(data, null, 2);
-      
-      const kpis = data.slice(1); // Solo las filas de datos
-      if (kpis.length === 0) return;
+        rawDataContainer.textContent = JSON.stringify(data, null, 2);
 
-      // --- INICIO DE LA MODIFICACIÓN ---
-      // Separamos los KPIs en dos grupos: los que se pueden graficar y los que no.
-      const graphableKpis = kpis.filter(row => !isNaN(parseFloat(row[4])) && typeof row[4] !== 'string');
-      const textKpis = kpis.filter(row => typeof row[4] === 'string' && row[4].includes('%'));
-      
-      // 1. Mostrar KPIs textuales (financieros) en tarjetas
-      const mainContent = document.querySelector('main > div'); // Selecciona el contenedor principal
-      if (textKpis.length > 0) {
-          let textKpisHtml = `
-            <div class="mb-8 rounded-lg bg-white p-6 shadow">
-              <h2 class="text-lg font-semibold leading-6 text-slate-900">Resultados Financieros (Logro)</h2>
-              <dl class="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          `;
-          textKpis.forEach(row => {
-              const kpiName = row[1]; // NombreKPI
-              const kpiValue = row[4]; // Valor en %
-              textKpisHtml += `
-                <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-                  <dt class="truncate text-sm font-medium text-slate-500">${kpiName}</dt>
-                  <dd class="mt-1 text-3xl font-semibold tracking-tight text-slate-900">${kpiValue}</dd>
+        if (!data || data.length === 0) {
+            kpiContainer.innerHTML = '<p>No hay datos de desempeño para mostrar.</p>';
+            return;
+        }
+
+        let allKpisHtml = '';
+        data.forEach(kpi => {
+            allKpisHtml += `
+                <div class="rounded-lg bg-white p-6 shadow">
+                    <h2 class="text-lg font-semibold leading-6 text-slate-900 mb-4">${kpi.kpi_name}</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        <div class="rounded-lg border border-slate-200 p-4">
+                            <h3 class="font-semibold text-slate-800">Desempeño del Periodo</h3>
+                            <dl class="mt-2 space-y-2">
+                                <div class="flex justify-between text-sm"><dt class="text-slate-500">Periodo:</dt><dd class="font-medium text-slate-700">${new Date(kpi.latestPeriod.Periodo).toLocaleDateString()}</dd></div>
+                                <div class="flex justify-between text-sm"><dt class="text-slate-500">Meta:</dt><dd class="font-medium text-slate-700">${kpi.latestPeriod.Meta}</dd></div>
+                                <div class="flex justify-between text-sm"><dt class="text-slate-500">Resultado:</dt><dd class="font-bold text-lg text-blue-600">${kpi.latestPeriod.Valor}</dd></div>
+                            </dl>
+                        </div>
+
+                        <div class="rounded-lg border border-slate-200 p-4">
+                            <h3 class="font-semibold text-slate-800">Acumulado</h3>
+                            <canvas id="historical-chart-${kpi.kpi_id}"></canvas>
+                        </div>
+
+                        <div class="rounded-lg border border-slate-200 p-4">
+                            <h3 class="font-semibold text-slate-800">Progreso vs Meta Anual</h3>
+                            <canvas id="annual-chart-${kpi.kpi_id}"></canvas>
+                        </div>
+
+                    </div>
                 </div>
-              `;
-          });
-          textKpisHtml += `</dl></div>`;
-          mainContent.insertAdjacentHTML('afterbegin', textKpisHtml); // Inserta las tarjetas al inicio del <main>
-      }
-
-      // 2. Graficar solo los KPIs numéricos
-      if (graphableKpis.length > 0) {
-        const ctx = document.getElementById('myChart').getContext('2d');
-        const labels = graphableKpis.map(row => row[1]); // Columna B: NombreKPI
-        const values = graphableKpis.map(row => parseFloat(row[4])); // Columna E: Valor
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Mi Desempeño Operativo',
-                    data: values,
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
-            }
+            `;
         });
-      } else {
-        // Si no hay nada que graficar, oculta el contenedor de la gráfica
-        document.getElementById('myChart').closest('.mb-8').style.display = 'none';
-      }
-      // --- FIN DE LA MODIFICACIÓN ---
+
+        kpiContainer.innerHTML = allKpisHtml;
+
+        // NOW that the HTML is in the DOM, initialize the charts
+        data.forEach(kpi => {
+            // Chart for Column 2 (Historical)
+            const historicalCtx = document.getElementById(`historical-chart-${kpi.kpi_id}`).getContext('2d');
+            new Chart(historicalCtx, {
+                type: 'line',
+                data: {
+                    labels: kpi.historicalData.map(d => new Date(d.Periodo).toLocaleDateString('es-ES', { month: 'short' })),
+                    datasets: [{
+                        label: 'Resultado por Periodo',
+                        data: kpi.historicalData.map(d => parseFloat(String(d.Valor).replace(/[^0-9.-]+/g, "")) || 0),
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Chart for Column 3 (Annual Progress)
+            const annualCtx = document.getElementById(`annual-chart-${kpi.kpi_id}`).getContext('2d');
+            new Chart(annualCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Progreso Anual'],
+                    datasets: [
+                        {
+                            label: 'Meta Anual',
+                            data: [kpi.annualProgress.Meta],
+                            backgroundColor: 'rgba(203, 213, 225, 1)', // gray
+                        },
+                        {
+                            label: 'Acumulado Anual',
+                            data: [kpi.annualProgress.Acumulado],
+                            backgroundColor: 'rgba(37, 99, 235, 1)', // blue
+                        }
+                    ]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
+            });
+        });
+
     })
-    .catch(error => console.error('Error al cargar datos:', error));
+    .catch(error => {
+        kpiContainer.innerHTML = `<p class="text-red-600">Ocurrió un error al cargar los datos: ${error.message}</p>`;
+        console.error('Error al cargar datos:', error);
+    });
+    // --- END OF MAJOR MODIFICATION ---
 });
