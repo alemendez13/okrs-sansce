@@ -16,7 +16,7 @@ exports.handler = async function (event, context) {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'CatalogoKPIs!A:F', // Lee todas las columnas de la hoja CatalogoKPIs
+      range: 'CatalogoKPIs!A:G', // Lee todas las columnas de la hoja CatalogoKPIs
     });
 
     return {

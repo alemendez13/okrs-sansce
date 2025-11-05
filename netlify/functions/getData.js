@@ -34,7 +34,7 @@ exports.handler = async function (event, context) {
     const [resultsResponse, usersResponse, catalogResponse] = await Promise.all([
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:E' }),
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Usuarios!A:E' }),
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:F' }),
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:G' }),
     ]);
 
     const allResults = sheetDataToObject(resultsResponse.data.values);
@@ -65,7 +65,8 @@ exports.handler = async function (event, context) {
           kpi_name: kpiInfo ? kpiInfo.NombreKPI : 'Unknown KPI',
           // --- INICIO DE LA MODIFICACIÓN ---
           // Añadimos el Tipo y si EsFinanciero
-          kpi_type: kpiInfo ? kpiInfo.Tipo : 'N/A', 
+          kpi_type: kpiInfo ? kpiInfo.Tipo : 'N/A',
+          kpi_owner: kpiInfo ? kpiInfo.Responsable : 'N/A', // AÑADIDO 
           is_financial: kpiInfo && (kpiInfo.EsFinanciero === 'TRUE' || kpiInfo.EsFinanciero === 'SI'),
           // --- FIN DE LA MODIFICACIÓN ---
           results: []
@@ -101,6 +102,7 @@ exports.handler = async function (event, context) {
         kpi_name: kpiGroup.kpi_name,
         kpi_id: kpiGroup.kpi_id,
         kpi_type: kpiGroup.kpi_type, // Devolver el tipo de KPI
+        kpi_owner: kpiGroup.kpi_owner, // AÑADIDO
         
         // Datos para la "Stat Card"
         latestPeriod: {
