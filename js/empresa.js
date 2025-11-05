@@ -42,26 +42,27 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
         .then(response => response.json())
         .then(data => {
-            if (!data || data.length < 2) {
-                document.getElementById('rawData').textContent = 'No se encontraron datos.';
-                return;
-            }
             
-            // Filtra solo los KPIs Estratégicos
-            const strategicKpis = data.slice(1).filter(row => row[3] && row[3].toLowerCase() === 'estratégico');
-            
+            // --- INICIO DE CORRECCIÓN ---
+            // Filtramos los KPIs por el 'kpi_type' que añadimos.
+            const strategicKpis = data.filter(kpi => kpi.kpi_type === 'estratégico');
+            // --- FIN DE CORRECCIÓN ---
+
             const dataContainer = document.getElementById('rawData');
             dataContainer.textContent = JSON.stringify(strategicKpis, null, 2);
             
+            if (strategicKpis.length === 0) {
+                 document.getElementById('myChart').innerHTML = '<p>No se encontraron KPIs estratégicos.</p>';
+                 return;
+            }
+            
             const ctx = document.getElementById('myChart').getContext('2d');
             
-            // Mapea los datos para la gráfica
-            const labels = strategicKpis.map(row => row[1]); // Columna B: NombreKPI
-            const values = strategicKpis.map(row => {
-                // Limpia el valor para asegurarse de que es un número (ej. quita '$', ',', etc.)
-                const cleanValue = String(row[4]).replace(/[^0-9.-]+/g,"");
-                return parseFloat(cleanValue) || 0;
-            });
+            // --- INICIO DE CORRECCIÓN ---
+            // Mapeamos desde el objeto 'kpi' procesado
+            const labels = strategicKpis.map(kpi => kpi.kpi_name);
+            const values = strategicKpis.map(kpi => kpi.latestPeriod.ValorNum); // Usamos el valor numérico
+            // --- FIN DE CORRECCIÓN ---
 
             new Chart(ctx, {
                 type: 'bar',
@@ -70,10 +71,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     datasets: [{
                         label: 'Desempeño Estratégico',
                         data: values,
-                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)', // Azul
                         borderColor: 'rgba(79, 70, 229, 1)',
                         borderWidth: 1
                     }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                    }
                 }
             });
         })

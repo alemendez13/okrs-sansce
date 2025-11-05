@@ -9,6 +9,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const navContainer = document.getElementById('nav-container');
     const headerTitle = document.getElementById('header-title');
     
+    // Registrar el plugin de datalabels globalmente
+    Chart.register(ChartDataLabels);
+    Chart.defaults.plugins.datalabels.display = false; // Desactivado por defecto
+
+    // --- LÓGICA DE NAVEGACIÓN (Sin cambios) ---
     function buildNavigation(role) {
         let navLinks = `
             <a href="/catalogo.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Catálogo</a>
@@ -39,100 +44,201 @@ window.addEventListener('DOMContentLoaded', () => {
     buildNavigation(user.Rol);
     headerTitle.textContent = `Bienvenido, ${user.NombreCompleto}`;
 
-    // --- START OF MAJOR MODIFICATION ---
+    // --- INICIO DE LA MODIFICACIÓN ---
+    
     const kpiContainer = document.getElementById('kpi-container');
     const rawDataContainer = document.getElementById('rawData');
 
-fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
-    .then(response => response.json())
-    .then(data => {
-        rawDataContainer.textContent = JSON.stringify(data, null, 2);
+    fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
+        .then(response => response.json())
+        .then(data => {
+            rawDataContainer.textContent = JSON.stringify(data, null, 2);
 
-        if (!data || data.length === 0) {
-            kpiContainer.innerHTML = '<p>No hay datos de desempeño para mostrar.</p>';
-            return;
-        }
+            if (!data || data.length === 0) {
+                kpiContainer.innerHTML = '<p>No hay datos de desempeño para mostrar.</p>';
+                return;
+            }
 
-        let allKpisHtml = '';
-        data.forEach(kpi => {
-            allKpisHtml += `
-                <div class="rounded-lg bg-white p-6 shadow">
-                    <h2 class="text-lg font-semibold leading-6 text-slate-900 mb-4">${kpi.kpi_name}</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            let allKpisHtml = '';
+            
+            // 1. Construir el HTML para todas las tarjetas
+            data.forEach(kpi => {
+                const periodo = kpi.latestPeriod.Periodo ? new Date(kpi.latestPeriod.Periodo).toLocaleDateString('es-ES', { year: 'numeric', month: 'short' }) : 'N/A';
+                const meta = kpi.latestPeriod.Meta || 'N/A';
+                const resultado = kpi.latestPeriod.Valor || 'N/A';
+                const kpiTypeClass = kpi.kpi_type === 'estratégico' 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-yellow-100 text-yellow-800';
+
+                allKpisHtml += `
+                    <div class="flex flex-col rounded-lg bg-white shadow-lg overflow-hidden">
+                        <!-- Encabezado de la Tarjeta -->
+                        <div class="p-4 border-b border-slate-200">
+                            <h3 class="text-base font-semibold text-slate-900 truncate">${kpi.kpi_name}</h3>
+                            <span class="text-xs font-medium px-2 py-0.5 rounded-full ${kpiTypeClass}">${kpi.kpi_type}</span>
+                        </div>
                         
-                        <div class="rounded-lg border border-slate-200 p-4">
-                            <h3 class="font-semibold text-slate-800">Desempeño del Periodo</h3>
-                            <dl class="mt-2 space-y-2">
-                                <div class="flex justify-between text-sm"><dt class="text-slate-500">Periodo:</dt><dd class="font-medium text-slate-700">${new Date(kpi.latestPeriod.Periodo).toLocaleDateString()}</dd></div>
-                                <div class="flex justify-between text-sm"><dt class="text-slate-500">Meta:</dt><dd class="font-medium text-slate-700">${kpi.latestPeriod.Meta}</dd></div>
-                                <div class="flex justify-between text-sm"><dt class="text-slate-500">Resultado:</dt><dd class="font-bold text-lg text-blue-600">${kpi.latestPeriod.Valor}</dd></div>
-                            </dl>
-                        </div>
+                        <!-- Cuerpo de la Tarjeta (Gráficas y Stats) -->
+                        <div class="p-4 space-y-4 flex-1">
+                            <!-- 1. Desempeño del Periodo (Dona) -->
+                            <div>
+                                <h4 class="text-sm font-medium text-slate-600">Desempeño del Periodo (${periodo})</h4>
+                                <div class="flex items-center justify-between mt-1">
+                                    <div class="gauge-container" style="width: 100px; height: 100px;">
+                                        <canvas id="gauge-chart-${kpi.kpi_id}"></canvas>
+                                    </div>
+                                    <div class="text-right flex-1">
+                                        <dl>
+                                            <dt class="text-xs text-slate-500">Resultado</dt>
+                                            <dd class="text-xl font-bold text-blue-600">${resultado}</dd>
+                                            <dt class="text-xs text-slate-500 mt-1">Meta</dt>
+                                            <dd class="text-sm text-slate-600">${meta}</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
 
-                        <div class="rounded-lg border border-slate-200 p-4">
-                            <h3 class="font-semibold text-slate-800">Acumulado</h3>
-                            <canvas id="historical-chart-${kpi.kpi_id}"></canvas>
-                        </div>
+                            <!-- 2. Histórico (Línea) -->
+                            <div>
+                                <h4 class="text-sm font-medium text-slate-600">Acumulado Histórico</h4>
+                                <div class="chart-container mt-2">
+                                    <canvas id="historical-chart-${kpi.kpi_id}"></canvas>
+                                </div>
+                            </div>
 
-                        <div class="rounded-lg border border-slate-200 p-4">
-                            <h3 class="font-semibold text-slate-800">Progreso vs Meta Anual</h3>
-                            <canvas id="annual-chart-${kpi.kpi_id}"></canvas>
+                            <!-- 3. Progreso Anual (Barra) -->
+                            <div>
+                                <h4 class="text-sm font-medium text-slate-600">Progreso vs Meta Anual</h4>
+                                <div class="chart-container mt-2">
+                                    <canvas id="annual-chart-${kpi.kpi_id}"></canvas>
+                                </div>
+                            </div>
                         </div>
-
                     </div>
-                </div>
-            `;
-        });
-
-        kpiContainer.innerHTML = allKpisHtml;
-
-        // NOW that the HTML is in the DOM, initialize the charts
-        data.forEach(kpi => {
-            // Chart for Column 2 (Historical)
-            const historicalCtx = document.getElementById(`historical-chart-${kpi.kpi_id}`).getContext('2d');
-            new Chart(historicalCtx, {
-                type: 'line',
-                data: {
-                    labels: kpi.historicalData.map(d => new Date(d.Periodo).toLocaleDateString('es-ES', { month: 'short' })),
-                    datasets: [{
-                        label: 'Resultado por Periodo',
-                        data: kpi.historicalData.map(d => parseFloat(String(d.Valor).replace(/[^0-9.-]+/g, "")) || 0),
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        fill: true,
-                        tension: 0.1
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+                `;
             });
 
-            // Chart for Column 3 (Annual Progress)
-            const annualCtx = document.getElementById(`annual-chart-${kpi.kpi_id}`).getContext('2d');
-            new Chart(annualCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Progreso Anual'],
-                    datasets: [
-                        {
-                            label: 'Meta Anual',
-                            data: [kpi.annualProgress.Meta],
-                            backgroundColor: 'rgba(203, 213, 225, 1)', // gray
+            // 2. Insertar el HTML en el DOM
+            kpiContainer.innerHTML = allKpisHtml;
+
+            // 3. Renderizar las gráficas AHORA que los canvas existen
+            data.forEach(kpi => {
+                const meta = kpi.latestPeriod.MetaNum;
+                const valor = kpi.latestPeriod.ValorNum;
+                const achievement = meta > 0 ? (valor / meta) * 100 : 0;
+                const remaining = Math.max(0, 100 - achievement);
+
+                // Gráfica 1: Desempeño del Periodo (Dona)
+                const gaugeCtx = document.getElementById(`gauge-chart-${kpi.kpi_id}`).getContext('2d');
+                new Chart(gaugeCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Alcanzado', 'Faltante'],
+                        datasets: [{
+                            data: [achievement, remaining],
+                            backgroundColor: ['rgba(37, 99, 235, 1)', 'rgba(226, 232, 240, 1)'],
+                            borderColor: ['rgba(37, 99, 235, 1)', 'rgba(226, 232, 240, 1)'],
+                            borderWidth: 1,
+                            circumference: 180, // Media dona
+                            rotation: 270,      // Empezar desde abajo
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false },
+                            datalabels: { // Mostrar el porcentaje en el centro
+                                display: true,
+                                color: '#1e3a8a', // text-blue-800
+                                font: { weight: 'bold', size: 20 },
+                                formatter: (value, context) => {
+                                    if (context.dataIndex === 0) {
+                                        return `${value.toFixed(0)}%`;
+                                    }
+                                    return '';
+                                },
+                                translateY: -20 // Ajustar posición vertical del texto
+                            }
                         },
-                        {
-                            label: 'Acumulado Anual',
-                            data: [kpi.annualProgress.Acumulado],
-                            backgroundColor: 'rgba(37, 99, 235, 1)', // blue
-                        }
-                    ]
-                },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
-            });
-        });
+                        cutout: '70%' // Grosor de la dona
+                    }
+                });
 
-    })
-    .catch(error => {
-        kpiContainer.innerHTML = `<p class="text-red-600">Ocurrió un error al cargar los datos: ${error.message}</p>`;
-        console.error('Error al cargar datos:', error);
-    });
-    // --- END OF MAJOR MODIFICATION ---
+                // Gráfica 2: Histórico (Línea)
+                const historicalCtx = document.getElementById(`historical-chart-${kpi.kpi_id}`).getContext('2d');
+                new Chart(historicalCtx, {
+                    type: 'line',
+                    data: {
+                        labels: kpi.historicalData.map(d => new Date(d.Periodo).toLocaleDateString('es-ES', { month: 'short' })),
+                        datasets: [{
+                            label: 'Resultado',
+                            data: kpi.historicalData.map(d => d.Valor),
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            fill: true,
+                            tension: 0.1,
+                            pointRadius: 2
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { ticks: { font: { size: 10 } } },
+                            x: { ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+
+                // Gráfica 3: Progreso Anual (Barra)
+                const annualCtx = document.getElementById(`annual-chart-${kpi.kpi_id}`).getContext('2d');
+                new Chart(annualCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Progreso Anual'],
+                        datasets: [
+                            {
+                                label: 'Acumulado',
+                                data: [kpi.annualProgress.Acumulado],
+                                backgroundColor: 'rgba(37, 99, 235, 1)', // azul
+                                barPercentage: 0.5
+                            },
+                            {
+                                label: 'Meta',
+                                data: [kpi.annualProgress.Meta],
+                                backgroundColor: 'rgba(203, 213, 225, 1)', // gris
+                                barPercentage: 0.5
+                            }
+                        ]
+                    },
+                    options: { 
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: true, position: 'bottom', labels: { font: { size: 10 } } },
+                            datalabels: {
+                                display: true,
+                                color: 'white',
+                                font: { size: 10, weight: 'bold' },
+                                formatter: (value) => value.toLocaleString() // Formatear número
+                            }
+                        },
+                        scales: {
+                            x: { display: false, stacked: true },
+                            y: { display: false, stacked: true }
+                        }
+                    }
+                });
+            });
+
+        })
+        .catch(error => {
+            kpiContainer.innerHTML = `<p class="text-red-600">Ocurrió un error al cargar los datos: ${error.message}</p>`;
+            console.error('Error al cargar datos:', error);
+        });
+    // --- FIN DE LA MODIFICACIÓN ---
 });

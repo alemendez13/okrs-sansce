@@ -2,10 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Obtiene y verifica los datos del usuario
     const user = JSON.parse(localStorage.getItem('user'));
 
-    if (!user) {
+    // --- INICIO DE CORRECCIÓN ---
+    // Redirige si no está logueado O SI ES ROL 'general'
+    if (!user || user.Rol === 'general') {
         window.location.href = '/index.html';
         return;
     }
+    // --- FIN DE CORRECCIÓN ---
 
     // 2. Elementos del DOM para la navegación
     const navContainer = document.getElementById('nav-container');
@@ -47,28 +50,46 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
         .then(response => response.json())
         .then(data => {
-            // Filtra solo los KPIs Tácticos
-            const kpiCatalog = data.slice(1).filter(row => row[3] === 'táctico');
             
+            // --- INICIO DE CORRECCIÓN ---
+            // El 'data' que llega ya está procesado por getData.js
+            // Filtramos los KPIs por el 'kpi_type' que añadimos.
+            const tacticosKpis = data.filter(kpi => kpi.kpi_type === 'táctico');
+            // --- FIN DE CORRECCIÓN ---
+
             const dataContainer = document.getElementById('rawData');
-            dataContainer.textContent = JSON.stringify(kpiCatalog, null, 2);
+            dataContainer.textContent = JSON.stringify(tacticosKpis, null, 2);
             
+            if (tacticosKpis.length === 0) {
+                 document.getElementById('myChart').innerHTML = '<p>No se encontraron KPIs tácticos.</p>';
+                 return;
+            }
+
             const ctx = document.getElementById('myChart').getContext('2d');
             
-            const labels = kpiCatalog.map(row => row[1]); // Columna B: NombreKPI
-            const values = kpiCatalog.map(row => parseFloat(row[5] || 0)); // Columna F: Valor (Asegurarse que es número)
+            // --- INICIO DE CORRECCIÓN ---
+            // Mapeamos desde el objeto 'kpi' procesado
+            const labels = tacticosKpis.map(kpi => kpi.kpi_name);
+            const values = tacticosKpis.map(kpi => kpi.latestPeriod.ValorNum); // Usamos el valor numérico
+            // --- FIN DE CORRECCIÓN ---
 
             new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Desempeño de Procesos',
+                        label: 'Desempeño de Procesos (Tácticos)',
                         data: values,
-                        backgroundColor: 'rgba(234, 179, 8, 0.2)',
+                        backgroundColor: 'rgba(234, 179, 8, 0.2)', // Amarillo
                         borderColor: 'rgba(234, 179, 8, 1)',
                         borderWidth: 1
                     }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                    }
                 }
             });
         })
