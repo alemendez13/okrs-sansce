@@ -41,21 +41,43 @@ exports.handler = async function (event, context) {
     const allUsers = sheetDataToObject(usersResponse.data.values);
     const kpiCatalog = sheetDataToObject(catalogResponse.data.values);
 
-    // 2. Filtrar resultados según el rol del usuario
-    let userVisibleResults = [];
-    if (rol === 'admin') {
-      userVisibleResults = allResults;
-    } else if (rol === 'coordinador') {
-      const coordinator = allUsers.find(u => u.UserID === userID);
-      if (coordinator) {
-        const teamIDs = allUsers.filter(u => u.EquipoID === coordinator.EquipoID).map(u => u.UserID);
-        userVisibleResults = allResults.filter(result => teamIDs.includes(result.UserID));
-      }
-    } else { // 'general'
-      userVisibleResults = allResults.filter(result => result.UserID === userID);
+    // --- INICIO DE LA MODIFICACIÓN (Lógica de Roles) ---
+
+    // 2. Encontrar al usuario actual y su equipo
+    const currentUser = allUsers.find(u => u.UserID === userID);
+    if (!currentUser) {
+      // Si el userID no es válido (aunque login.js debería prevenir esto)
+      return { statusCode: 404, body: JSON.stringify({ message: 'Usuario de sesión no encontrado' }) };
     }
     
-    // 3. Agrupar los resultados visibles por KPI_ID
+    const userTeam = allUsers
+      .filter(u => u.EquipoID === currentUser.EquipoID)
+      .map(u => u.NombreCompleto); // Obtenemos los NOMBRES del equipo
+
+    let allowedKpiIDs = [];
+
+    // 3. Filtrar KPIs basado en el Rol (Propiedad, no Reporte)
+    if (rol === 'admin') {
+        // Admin ve todos los KPIs
+        allowedKpiIDs = kpiCatalog.map(kpi => kpi.KPI_ID);
+    } else if (rol === 'coordinador') {
+        // Coordinador ve los KPIs de su equipo
+        allowedKpiIDs = kpiCatalog
+            .filter(kpi => userTeam.includes(kpi.Responsable))
+            .map(kpi => kpi.KPI_ID);
+    } else { // 'general'
+        // General ve solo los KPIs donde es responsable
+        allowedKpiIDs = kpiCatalog
+            .filter(kpi => kpi.Responsable === currentUser.NombreCompleto)
+            .map(kpi => kpi.KPI_ID);
+    }
+
+    // 4. Filtrar los resultados basado en los KPIs permitidos
+    const userVisibleResults = allResults.filter(result => allowedKpiIDs.includes(result.KPI_ID));
+    
+    // --- FIN DE LA MODIFICACIÓN ---
+
+    // 5. Agrupar los resultados visibles por KPI_ID (Esto sigue igual)
     const groupedData = {};
     for (const result of userVisibleResults) {
       if (!groupedData[result.KPI_ID]) {
