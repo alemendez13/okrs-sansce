@@ -99,16 +99,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 visibleCells.forEach((cell, index) => {
                     let cellClass = '';
+
+                    // --- INICIO DE LA MODIFICACIÓN ---
+                    // Asignamos clases de Tailwind CSS basadas en el índice de la columna
+                    // para controlar el ancho y el ajuste de texto.
                     switch (index) {
                         case 0: // KPI_ID
-                            cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6';
+                            cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6 w-24'; // Ancho fijo
+                            break;
+                        case 1: // NombreKPI
+                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5'; // Ancho relativo, permite wrap
                             break;
                         case 2: // Descripcion
-                            cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal max-w-md';
+                            cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal w-2/5'; // Ancho relativo más grande
                             break;
-                        default: // Otras columnas
+                        case 3: // Tipo
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            break;
+                        case 4: // Frecuencia
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            break;
+                        case 5: // EsFinanciero
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            break;
+                        case 6: // Responsable
+                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5'; // Ancho relativo, permite wrap
+                            break;
+                        default: // Fallback
                             cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500';
                     }
+                    // --- FIN DE LA MODIFICACIÓN ---
+
+                    
                     bodyHtml += `<td class="${cellClass}">${cell}</td>`;
                 });
                 bodyHtml += '</tr>';
