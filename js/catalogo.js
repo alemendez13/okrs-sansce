@@ -76,7 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const headers = data[0];
             const rows = data.slice(1);
 
-            const visibleHeaders = headers.slice(0, -1);
+            // --- INICIO DE LA MODIFICACIÓN ---
+            // const visibleHeaders = headers.slice(0, -1); // Eliminamos esta línea
+            const visibleHeaders = headers; // Ahora usamos todos los headers
+            // --- FIN DE LA MODIFICACIÓN ---
 
             let headerHtml = '<tr>';
             visibleHeaders.forEach(header => {
@@ -88,7 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let bodyHtml = '';
             rows.forEach(row => {
                 bodyHtml += '<tr>';
-                const visibleCells = row.slice(0, -1);
+                
+                // --- INICIO DE LA MODIFICACIÓN ---
+                // const visibleCells = row.slice(0, -1); // Eliminamos esta línea
+                const visibleCells = row; // Ahora usamos todas las celdas
+                // --- FIN DE LA MODIFICACIÓN ---
 
                 visibleCells.forEach((cell, index) => {
                     let cellClass = '';

@@ -76,6 +76,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         <div class="p-4 border-b border-slate-200">
                             <h3 class="text-base font-semibold text-slate-900 truncate">${kpi.kpi_name}</h3>
                             <span class="text-xs font-medium px-2 py-0.5 rounded-full ${kpiTypeClass}">${kpi.kpi_type}</span>
+                            <!-- INICIO DE LA MODIFICACIÓN -->
+                            <p class="text-sm font-medium text-slate-500 mt-1 truncate">Resp: ${kpi.kpi_owner || 'N/A'}</p>
+                            <!-- FIN DE LA MODIFICACIÓN -->
                         </div>
                         
                         <!-- Cuerpo de la Tarjeta (Gráficas y Stats) -->
