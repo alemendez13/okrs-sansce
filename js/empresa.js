@@ -3,9 +3,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Obtiene y verifica los datos del usuario
     const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('authToken'); // <-- 1. Obtener el token
 
     // Redirige si no está logueado o si no es admin
-    if (!user || user.Rol !== 'admin') {
+    if (!user || !token || user.Rol !== 'admin') {
         window.location.href = '/index.html';
         return;
     }
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('logout-btn').addEventListener('click', () => {
             localStorage.removeItem('user');
+            localStorage.removeItem('authToken'); // <-- AÑADIDO
             window.location.href = '/index.html';
         });
     }
@@ -38,9 +40,26 @@ document.addEventListener('DOMContentLoaded', () => {
     buildNavigation(user.Rol);
     headerTitle.textContent = 'Resultados de la Empresa';
 
-    // 5. Llama a la función getData para obtener todos los datos (como admin)
-    fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
-        .then(response => response.json())
+    // --- 3. MODIFICAR EL FETCH ---
+    fetch('/.netlify/functions/getData', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}` // <-- AÑADIDO
+        }
+    })
+    .then(response => {
+        // --- 4. AÑADIR MANEJO DE ERROR 401 ---
+        if (response.status === 401) {
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            window.location.href = '/index.html';
+            return; // Detiene la ejecución
+        }
+        if (!response.ok) {
+            throw new Error('La respuesta de la red no fue exitosa.');
+        }
+        return response.json();
+    })
         .then(data => {
             
             // --- INICIO DE CORRECCIÓN ---
@@ -83,6 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
+
+            console.log("Datos recibidos para el gráfico de Empresa:", data);
         })
         .catch(error => console.error('Error al cargar datos de la empresa:', error));
 });

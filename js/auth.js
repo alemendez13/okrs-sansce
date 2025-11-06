@@ -34,8 +34,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 3. Si el login es exitoso, guarda los datos en localStorage
-            localStorage.setItem('user', JSON.stringify(result));
+            // --- INICIO DE LA MODIFICACIÓN ---
+            // 'result' ahora es { token: "...", user: {...} }
+
+            // 1. Guardamos los datos del usuario (para la UI, ej. "Bienvenido, Juan")
+            localStorage.setItem('user', JSON.stringify(result.user));
+            
+            // 2. Guardamos el token por separado (para las solicitudes de API)
+            localStorage.setItem('authToken', result.token);
+            // --- FIN DE LA MODIFICACIÓN ---
             
             // 4. Redirige al usuario al dashboard
             window.location.href = '/dashboard.html';

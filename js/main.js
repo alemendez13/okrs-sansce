@@ -1,7 +1,8 @@
 window.addEventListener('DOMContentLoaded', () => {
     const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('authToken'); // <-- 1. Obtener el token
 
-    if (!user) {
+    if (!user || !token) { // <-- 2. Verificar ambos
         window.location.href = '/index.html';
         return;
     }
@@ -49,8 +50,23 @@ window.addEventListener('DOMContentLoaded', () => {
     const kpiContainer = document.getElementById('kpi-container');
     const rawDataContainer = document.getElementById('rawData');
 
-    fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
-        .then(response => response.json())
+    // ¡BORRA!) fetch(/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID})
+    fetch('/.netlify/functions/getData', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}` // <-- 4. Enviar el token en la cabecera
+        }
+    })
+    .then(response => {
+        // Añadir manejo de error 401 (opcional pero recomendado)
+        if (response.status === 401) {
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            window.location.href = '/index.html';
+            return;
+        }
+        return response.json();
+    })
         .then(data => {
             rawDataContainer.textContent = JSON.stringify(data, null, 2);
 
