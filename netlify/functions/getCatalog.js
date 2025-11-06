@@ -1,8 +1,29 @@
 // netlify/functions/getCatalog.js
 
 const { google } = require('googleapis');
+const jwt = require('jsonwebtoken'); // <-- 1. Importar la biblioteca
 
 exports.handler = async function (event, context) {
+
+  // --- 2. INICIO DE LA VERIFICACIÓN DEL TOKEN ---
+  const authHeader = event.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { 
+      statusCode: 401, 
+      body: JSON.stringify({ error: 'Acceso no autorizado. Token no proporcionado.' }) 
+    };
+  }
+
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    return { statusCode: 401, body: JSON.stringify({ error: 'Token inválido o expirado.' }) };
+  }
+  // --- FIN DE LA VERIFICACIÓN DEL TOKEN ---
+
   try {
     const auth = new google.auth.GoogleAuth({
       credentials: {

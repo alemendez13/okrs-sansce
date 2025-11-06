@@ -1,6 +1,7 @@
 // netlify/functions/login.js
 
 const { google } = require('googleapis');
+const jwt = require('jsonwebtoken'); // <-- 1. Importar la biblioteca
 
 // Helper function to convert sheet data to an array of objects
 const sheetDataToObject = (rows) => {
@@ -50,15 +51,32 @@ exports.handler = async function (event, context) {
     const foundUser = users.find(user => user.Email && user.Email.toLowerCase() === email.toLowerCase());
 
     if (foundUser) {
-      // 5. Si lo encuentra, devuelve sus datos esenciales
+      // --- 2. INICIO DE LA MODIFICACIÓN ---
+      
+      // Preparamos los datos del usuario para el frontend y el token
+      const userPayload = {
+        UserID: foundUser.UserID,
+        Rol: foundUser.Rol,
+        NombreCompleto: foundUser.NombreCompleto
+      };
+
+      // Creamos el Token. Este token *prueba* quién es el usuario.
+      // Solo incluimos lo esencial para la verificación (UserID y Rol).
+      const token = jwt.sign(
+        { UserID: userPayload.UserID, Rol: userPayload.Rol },
+        process.env.JWT_SECRET, // <-- 3. Usar la clave secreta
+        { expiresIn: '1d' } // El token expira en 1 día
+      );
+
+      // 4. Devolvemos AMBOS: el token (para seguridad) y los datos del usuario (para la UI)
       return {
         statusCode: 200,
         body: JSON.stringify({
-          UserID: foundUser.UserID,
-          Rol: foundUser.Rol,
-          NombreCompleto: foundUser.NombreCompleto
+          token: token,
+          user: userPayload 
         }),
       };
+      // --- FIN DE LA MODIFICACIÓN ---
     } else {
       // 6. Si no lo encuentra, devuelve un error
       return {
