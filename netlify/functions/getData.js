@@ -34,7 +34,7 @@ exports.handler = async function (event, context) {
     const [resultsResponse, usersResponse, catalogResponse] = await Promise.all([
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:E' }),
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Usuarios!A:E' }),
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:G' }),
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:G' }), // Lee hasta la Col G (Responsable)
     ]);
 
     const allResults = sheetDataToObject(resultsResponse.data.values);
@@ -46,27 +46,27 @@ exports.handler = async function (event, context) {
     // 2. Encontrar al usuario actual y su equipo
     const currentUser = allUsers.find(u => u.UserID === userID);
     if (!currentUser) {
-      // Si el userID no es válido (aunque login.js debería prevenir esto)
       return { statusCode: 404, body: JSON.stringify({ message: 'Usuario de sesión no encontrado' }) };
     }
     
+    // Obtenemos los NOMBRES COMPLETOS de los miembros del equipo del usuario actual
     const userTeam = allUsers
       .filter(u => u.EquipoID === currentUser.EquipoID)
-      .map(u => u.NombreCompleto); // Obtenemos los NOMBRES del equipo
+      .map(u => u.NombreCompleto); 
 
     let allowedKpiIDs = [];
 
-    // 3. Filtrar KPIs basado en el Rol (Propiedad, no Reporte)
+    // 3. Filtrar KPIs basado en el Rol (Propiedad/Responsabilidad, no quién reportó)
     if (rol === 'admin') {
         // Admin ve todos los KPIs
         allowedKpiIDs = kpiCatalog.map(kpi => kpi.KPI_ID);
     } else if (rol === 'coordinador') {
-        // Coordinador ve los KPIs de su equipo
+        // Coordinador ve los KPIs donde el Responsable (Col G) es alguien de su equipo
         allowedKpiIDs = kpiCatalog
             .filter(kpi => userTeam.includes(kpi.Responsable))
             .map(kpi => kpi.KPI_ID);
     } else { // 'general'
-        // General ve solo los KPIs donde es responsable
+        // General ve solo los KPIs donde el Responsable (Col G) es él mismo
         allowedKpiIDs = kpiCatalog
             .filter(kpi => kpi.Responsable === currentUser.NombreCompleto)
             .map(kpi => kpi.KPI_ID);
@@ -77,7 +77,7 @@ exports.handler = async function (event, context) {
     
     // --- FIN DE LA MODIFICACIÓN ---
 
-    // 5. Agrupar los resultados visibles por KPI_ID (Esto sigue igual)
+    // 5. Agrupar los resultados visibles por KPI_ID
     const groupedData = {};
     for (const result of userVisibleResults) {
       if (!groupedData[result.KPI_ID]) {
@@ -85,19 +85,16 @@ exports.handler = async function (event, context) {
         groupedData[result.KPI_ID] = {
           kpi_id: result.KPI_ID,
           kpi_name: kpiInfo ? kpiInfo.NombreKPI : 'Unknown KPI',
-          // --- INICIO DE LA MODIFICACIÓN ---
-          // Añadimos el Tipo y si EsFinanciero
           kpi_type: kpiInfo ? kpiInfo.Tipo : 'N/A',
-          kpi_owner: kpiInfo ? kpiInfo.Responsable : 'N/A', // AÑADIDO 
+          kpi_owner: kpiInfo ? kpiInfo.Responsable : 'N/A', 
           is_financial: kpiInfo && (kpiInfo.EsFinanciero === 'TRUE' || kpiInfo.EsFinanciero === 'SI'),
-          // --- FIN DE LA MODIFICACIÓN ---
           results: []
         };
       }
       groupedData[result.KPI_ID].results.push(result);
     }
 
-    // 4. Procesar cada grupo de KPIs
+    // 6. Procesar cada grupo de KPIs (Cálculos)
     const processedKpis = Object.values(groupedData).map(kpiGroup => {
       const sortedResults = kpiGroup.results.sort((a, b) => new Date(b.Periodo) - new Date(a.Periodo));
       const latestResult = sortedResults[0];
@@ -123,25 +120,20 @@ exports.handler = async function (event, context) {
       return {
         kpi_name: kpiGroup.kpi_name,
         kpi_id: kpiGroup.kpi_id,
-        kpi_type: kpiGroup.kpi_type, // Devolver el tipo de KPI
-        kpi_owner: kpiGroup.kpi_owner, // AÑADIDO
+        kpi_type: kpiGroup.kpi_type,
+        kpi_owner: kpiGroup.kpi_owner, 
         
-        // Datos para la "Stat Card"
         latestPeriod: {
           Periodo: latestResult.Periodo,
           Meta: latestResult.Meta,
-          Valor: displayValor, // Valor original o %
-          // Valores numéricos puros para gráficas
+          Valor: displayValor,
           MetaNum: latestMeta,
           ValorNum: latestValor
         },
-        // Datos para la gráfica histórica
         historicalData: sortedResults.map(r => ({
           Periodo: r.Periodo,
           Valor: parseFloat(String(r.Valor).replace(/[^0-9.-]+/g, "")) || 0
-        })).reverse(), // .reverse() para orden cronológico
-        
-        // Datos para la gráfica de progreso anual
+        })).reverse(), 
         annualProgress: {
           Meta: annualMeta,
           Acumulado: annualValor
