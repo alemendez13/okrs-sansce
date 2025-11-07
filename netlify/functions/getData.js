@@ -1,7 +1,6 @@
 // netlify/functions/getData.js
 
 const { google } = require('googleapis');
-const jwt = require('jsonwebtoken'); // <-- 1. Importar la biblioteca
 
 // Helper para convertir datos de hoja de cálculo en objetos
 const sheetDataToObject = (rows) => {
@@ -18,32 +17,8 @@ const sheetDataToObject = (rows) => {
 
 // Función principal
 exports.handler = async function (event, context) {
-
-  // --- 2. INICIO DE LA VERIFICACIÓN DEL TOKEN ---
-  const authHeader = event.headers.authorization;
-  let verifiedPayload;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { 
-      statusCode: 401, 
-      body: JSON.stringify({ error: 'Acceso no autorizado. Token no proporcionado.' }) 
-    };
-  }
-
-  const token = authHeader.split(' ')[1]; // Extrae el token "Bearer <token>"
-  
   try {
-    // Verifica el token usando la clave secreta
-    verifiedPayload = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    return { statusCode: 401, body: JSON.stringify({ error: 'Token inválido o expirado.' }) };
-  }
-  // --- FIN DE LA VERIFICACIÓN DEL TOKEN ---
-
-  try {
-    // --- 3. OBTENER DATOS DEL TOKEN, NO DE LA URL ---
-    // ¡BORRA!) const { rol, userID } = event.queryStringParameters;
-    const { Rol, UserID } = verifiedPayload; // <-- Usamos los datos verificados del token
+    const { rol, userID } = event.queryStringParameters;
 
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -68,9 +43,8 @@ exports.handler = async function (event, context) {
 
     // --- INICIO DE LA MODIFICACIÓN (Lógica de Roles) ---
 
-    // --- 4. USAR LAS VARIABLES VERIFICADAS ---
-    // Busca al usuario usando el UserID del token
-    const currentUser = allUsers.find(u => u.UserID === UserID); // <-- Usa UserID
+    // 2. Encontrar al usuario actual y su equipo
+    const currentUser = allUsers.find(u => u.UserID === userID);
     if (!currentUser) {
       return { statusCode: 404, body: JSON.stringify({ message: 'Usuario de sesión no encontrado' }) };
     }
@@ -82,14 +56,17 @@ exports.handler = async function (event, context) {
 
     let allowedKpiIDs = [];
 
-    // Filtra KPIs basado en el Rol del token
-    if (Rol === 'admin') { // <-- Usa Rol
+    // 3. Filtrar KPIs basado en el Rol (Propiedad/Responsabilidad, no quién reportó)
+    if (rol === 'admin') {
+        // Admin ve todos los KPIs
         allowedKpiIDs = kpiCatalog.map(kpi => kpi.KPI_ID);
-    } else if (Rol === 'coordinador') { // <-- Usa Rol
+    } else if (rol === 'coordinador') {
+        // Coordinador ve los KPIs donde el Responsable (Col G) es alguien de su equipo
         allowedKpiIDs = kpiCatalog
             .filter(kpi => userTeam.includes(kpi.Responsable))
             .map(kpi => kpi.KPI_ID);
     } else { // 'general'
+        // General ve solo los KPIs donde el Responsable (Col G) es él mismo
         allowedKpiIDs = kpiCatalog
             .filter(kpi => kpi.Responsable === currentUser.NombreCompleto)
             .map(kpi => kpi.KPI_ID);
