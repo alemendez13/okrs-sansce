@@ -11,8 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "googleapis": "^164.1.0",
-    "jsonwebtoken": "^9.0.2"
+    "googleapis": "^164.1.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.24.7",

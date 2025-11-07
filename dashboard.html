@@ -35,7 +35,7 @@
                 <h1 id="header-title" class="ml-4 text-xl font-bold text-slate-800">Dashboard de KPIs</h1>
             </div>
             <div id="nav-container" class="flex items-center space-x-2">
-                <!-- La navegación se construye con JS -->
+                <!-- La navegación se construye con JS (buildNavigation) -->
             </div>
         </div>
     </div>
@@ -65,8 +65,13 @@
     </div>
 </main>
 
-    <script src="/js/main.js"></script>
+    <!-- 
+      PASO 1.2: Añadir shared.js ANTES que main.js
+      shared.js define buildNavigation()
+      main.js llama a buildNavigation()
+    -->
+    <script src="/js/shared.js" defer></script>
+    <script src="/js/main.js" defer></script>
 
 </body>
 </html>
-dashboard.html

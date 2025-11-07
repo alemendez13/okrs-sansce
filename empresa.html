@@ -5,10 +5,25 @@
     <title>Indicadores de desempeño PMR-FR-04 </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Incluir plugin de datalabels para Chart.js (necesario para las nuevas gráficas) -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
+    <!-- Estilos para las nuevas gráficas (copiados de dashboard.html) -->
+    <style>
+        .chart-container {
+            position: relative;
+            height: 120px;
+            width: 100%;
+        }
+        .gauge-container {
+            position: relative;
+            height: 100px;
+            width: 100%;
+        }
+    </style>
 </head>
 <body class="bg-slate-50">
 
@@ -20,7 +35,8 @@
                 <h1 id="header-title" class="ml-4 text-xl font-bold text-slate-800">Resultados de la Empresa</h1>
             </div>
             <div id="nav-container" class="flex items-center space-x-2">
-                </div>
+                <!-- La navegación se construye con JS (buildNavigation) -->
+            </div>
         </div>
     </div>
 </header>
@@ -28,14 +44,16 @@
     <main class="py-10">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             
-            <div class="mb-8 rounded-lg bg-white p-6 shadow">
-                <h2 class="text-lg font-semibold leading-6 text-slate-900">Eficacia vs Propósito</h2>
-                <div class="mt-4">
-                    <canvas id="myChart"></canvas>
-                </div>
+            <!-- 
+              INICIO DE LA ACTUALIZACIÓN VISUAL
+              Reemplazamos el canvas único por el grid de KPIs del dashboard.
+            -->
+            <div id="kpi-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Las tarjetas de KPIs (estratégicos) se insertarán aquí por JS -->
             </div>
+            <!-- FIN DE LA ACTUALIZACIÓN VISUAL -->
 
-            <div class="rounded-lg bg-white p-6 shadow">
+            <div class="mt-8 rounded-lg bg-white p-6 shadow">
                 <h2 class="text-lg font-semibold leading-6 text-slate-900">Datos Recibidos (Debug)</h2>
                 <pre id="rawData" class="mt-4 overflow-x-auto rounded bg-slate-100 p-4 text-sm"></pre>
             </div>
@@ -43,7 +61,11 @@
         </div>
     </main>
 
-    <script src="/js/empresa.js"></script>
+    <!-- 
+      PASO 1.4: Añadir shared.js ANTES que empresa.js
+    -->
+    <script src="/js/shared.js" defer></script>
+    <script src="/js/empresa.js" defer></script>
 
 </body>
 </html>
