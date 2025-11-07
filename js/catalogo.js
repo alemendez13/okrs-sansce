@@ -1,25 +1,31 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. OBTENER AMBOS ITEMS ---
-    const user = JSON.parse(localStorage.getItem('user'));
-    const token = localStorage.getItem('authToken');
+// js/catalogo.js
 
-    // --- 2. VERIFICAR AMBOS (Correcto) ---
-    if (!user || !token) {
+document.addEventListener('DOMContentLoaded', () => {
+    // Primero, verifica si el usuario está logueado
+    if (!localStorage.getItem('user')) {
         window.location.href = '/index.html';
         return;
     }
 
-    // --- Definición de variables del DOM ---
+    // --- INICIO DE LA CORRECCIÓN ---
+    // Añade esta línea para obtener los datos del usuario
+    const user = JSON.parse(localStorage.getItem('user'));
+    // --- FIN DE LA CORRECCIÓN ---
+
+    // Estas constantes se definen aquí, al inicio del listener
+    const table = document.getElementById('kpi-table');
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+
+    // --- INICIO DE LA MODIFICACIÓN ---
+
     const navContainer = document.getElementById('nav-container');
     const headerTitle = document.getElementById('header-title');
-    const kpiTable = document.getElementById('kpi-table');
-    const kpiTableHead = kpiTable.querySelector('thead');
-    const kpiTableBody = kpiTable.querySelector('tbody');
-
-    // --- Lógica de Navegación (Correcta) ---
+    
+    // Función para construir el menú
     function buildNavigation(role) {
         let navLinks = `
-            <a href="/catalogo.html" class="rounded-md bg-blue-600 px-2 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500">Catálogo</a>
+            <a href="/catalogo.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Catálogo</a>
             <a href="/dashboard.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Mi Desempeño</a>
         `;
 
@@ -34,108 +40,106 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
         
+        // Botón para cerrar sesión
         navLinks += `<button id="logout-btn" class="rounded-md bg-red-600 px-2 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-500">Cerrar Sesión</button>`;
 
         navContainer.innerHTML = navLinks;
 
+        // Añadir funcionalidad al botón de logout
         document.getElementById('logout-btn').addEventListener('click', () => {
-            // --- 5. CIERRE DE SESIÓN SEGURO (Correcto) ---
             localStorage.removeItem('user');
-            localStorage.removeItem('authToken'); // <-- Corregido
             window.location.href = '/index.html';
         });
     }
 
     buildNavigation(user.Rol);
-    // Usamos el título estático, que es lo correcto para esta página
-    headerTitle.textContent = 'Catálogo de KPIs';
+    headerTitle.textContent = `Bienvenido, ${user.NombreCompleto}`;
 
-    // --- Cargar datos del catálogo ---
-    
-    // --- 3. FETCH SEGURO (Correcto) ---
-    fetch('/.netlify/functions/getCatalog', {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}` 
-        }
-    })
-    .then(response => {
-        // --- 4. MANEJO DE ERROR 401 (Correcto) ---
-        if (response.status === 401) {
-            localStorage.removeItem('user');
-            localStorage.removeItem('authToken');
-            window.location.href = '/index.html';
-            return; // Detiene la ejecución
-        }
-        if (!response.ok) {
-            throw new Error('La respuesta de la red no fue exitosa.');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (!data || !data[0]) {
-            kpiTableBody.innerHTML = '<tr><td colspan="100%" class="px-3 py-4 text-sm text-slate-500 text-center">No hay datos en el catálogo.</td></tr>';
-            return;
-        }
+    // --- FIN DE LA MODIFICACIÓN ---
 
-        const headers = data[0];
-        const rows = data.slice(1);
+    // Toda la lógica 'fetch' debe estar DENTRO de este listener
+    fetch('/.netlify/functions/getCatalog')
+        .then(response => {
+            if (!response.ok) {
+                // Si la respuesta del servidor no es exitosa, lanza un error para que lo capture el .catch
+                throw new Error(`Error del servidor: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Verifica que data y data[0] existan antes de usarlos
+            if (!data || !data[0]) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No se encontraron datos en el catálogo.</td></tr>';
+                return;
+            }
 
-        // --- Construir Thead (Usando los estilos de la versión "Mejorada") ---
-        let headerHtml = '<tr>';
-        headers.forEach(header => {
-            headerHtml += `<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 sm:pl-6">${header}</th>`;
-        });
-        headerHtml += '</tr>';
-        kpiTableHead.innerHTML = headerHtml;
+            const headers = data[0];
+            const rows = data.slice(1);
 
-        // --- Construir Tbody ---
-        let bodyHtml = '';
-        rows.forEach(row => {
-            bodyHtml += '<tr>';
-            
-            // --- ¡INICIO DE LA RESTAURACIÓN! ---
-            // Usamos la lógica de estilos de TU ARCHIVO ORIGINAL
-            row.forEach((cell, index) => {
-                let cellClass = '';
+            // --- INICIO DE LA MODIFICACIÓN ---
+            // const visibleHeaders = headers.slice(0, -1); // Eliminamos esta línea
+            const visibleHeaders = headers; // Ahora usamos todos los headers
+            // --- FIN DE LA MODIFICACIÓN ---
 
-                switch (index) {
-                    case 0: // KPI_ID
-                        cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6 w-24';
-                        break;
-                    case 1: // NombreKPI
-                        cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5';
-                        break;
-                    case 2: // Descripcion
-                        cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal w-2/5';
-                        break;
-                    case 3: // Tipo
-                        cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24';
-                        break;
-                    case 4: // Frecuencia
-                        cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24';
-                        break;
-                    case 5: // EsFinanciero
-                        cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24';
-                        break;
-                    case 6: // Responsable
-                        cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5';
-                        break;
-                    default: // Fallback
-                        cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500';
-                }
-                
-                bodyHtml += `<td class="${cellClass}">${cell}</td>`;
+            let headerHtml = '<tr>';
+            visibleHeaders.forEach(header => {
+                headerHtml += `<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">${header}</th>`;
             });
-            // --- ¡FIN DE LA RESTAURACIÓN! ---
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
 
-            bodyHtml += '</tr>';
+            let bodyHtml = '';
+            rows.forEach(row => {
+                bodyHtml += '<tr>';
+                
+                // --- INICIO DE LA MODIFICACIÓN ---
+                // const visibleCells = row.slice(0, -1); // Eliminamos esta línea
+                const visibleCells = row; // Ahora usamos todas las celdas
+                // --- FIN DE LA MODIFICACIÓN ---
+
+                visibleCells.forEach((cell, index) => {
+                    let cellClass = '';
+
+                    // --- INICIO DE LA MODIFICACIÓN ---
+                    // Asignamos clases de Tailwind CSS basadas en el índice de la columna
+                    // para controlar el ancho y el ajuste de texto.
+                    switch (index) {
+                        case 0: // KPI_ID
+                            cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6 w-24'; // Ancho fijo
+                            break;
+                        case 1: // NombreKPI
+                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5'; // Ancho relativo, permite wrap
+                            break;
+                        case 2: // Descripcion
+                            cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal w-2/5'; // Ancho relativo más grande
+                            break;
+                        case 3: // Tipo
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            break;
+                        case 4: // Frecuencia
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            break;
+                        case 5: // EsFinanciero
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            break;
+                        case 6: // Responsable
+                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5'; // Ancho relativo, permite wrap
+                            break;
+                        default: // Fallback
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500';
+                    }
+                    // --- FIN DE LA MODIFICACIÓN ---
+
+                    
+                    bodyHtml += `<td class="${cellClass}">${cell}</td>`;
+                });
+                bodyHtml += '</tr>';
+            });
+            tbody.innerHTML = bodyHtml;
+        })
+        .catch(error => {
+            // Ahora 'tbody' sí está definido y accesible aquí
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Error al cargar el catálogo.</td></tr>';
+            console.error('Error:', error);
         });
-        kpiTableBody.innerHTML = bodyHtml;
-
-    })
-    .catch(error => {
-        console.error('Error al cargar el catálogo:', error);
-        kpiTableBody.innerHTML = `<tr><td colspan="100%" class="px-3 py-4 text-sm text-red-500 text-center">Error al cargar el catálogo: ${error.message}</td></tr>`;
-    });
-});
+}); // <-- Asegúrate que esta es la única llave de cierre para el 'DOMContentLoaded'

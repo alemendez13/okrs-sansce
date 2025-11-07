@@ -1,11 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Obtiene y verifica los datos del usuario
     const user = JSON.parse(localStorage.getItem('user'));
-    const token = localStorage.getItem('authToken');
 
     // --- INICIO DE CORRECCIÓN ---
     // Redirige si no está logueado O SI ES ROL 'general'
-    if (!user || !token || user.Rol === 'general') {
+    if (!user || user.Rol === 'general') {
         window.location.href = '/index.html';
         return;
     }
@@ -39,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('logout-btn').addEventListener('click', () => {
             localStorage.removeItem('user');
-            localStorage.removeItem('authToken'); // <-- AÑADIDO
             window.location.href = '/index.html';
         });
     }
@@ -48,26 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
     buildNavigation(user.Rol);
     headerTitle.textContent = 'Resultados de Procesos';
 
-    // --- 3. MODIFICAR EL FETCH ---
-    fetch('/.netlify/functions/getData', {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}` // <-- AÑADIDO
-        }
-    })
-    .then(response => {
-        // --- 4. AÑADIR MANEJO DE ERROR 401 ---
-        if (response.status === 401) {
-            localStorage.removeItem('user');
-            localStorage.removeItem('authToken');
-            window.location.href = '/index.html';
-            return; // Detiene la ejecución
-        }
-        if (!response.ok) {
-            throw new Error('La respuesta de la red no fue exitosa.');
-        }
-        return response.json();
-    })
+    // 5. Llama a la función getData para obtener los datos de procesos
+    fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
+        .then(response => response.json())
         .then(data => {
             
             // --- INICIO DE CORRECCIÓN ---
@@ -111,9 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
-
-            // Placeholder si aún no tienes la lógica del gráfico:
-        console.log("Datos recibidos para el gráfico de Procesos:", data);
         })
         .catch(error => console.error('Error al cargar datos de procesos:', error));
 });

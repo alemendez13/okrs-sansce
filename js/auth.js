@@ -2,15 +2,8 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
-    const emailInput = document.getElementById('email');
     const errorMessage = document.getElementById('error-message');
-    const submitButton = loginForm.querySelector('button[type="submit"]');
     // ---- FIN DE LA MODIFICACIÓN ----
-
-    // Revisar si ya está logueado
-    if (localStorage.getItem('user') && localStorage.getItem('authToken')) {
-        window.location.href = '/dashboard.html';
-        }
 
     loginForm.addEventListener('submit', async (event) => {
         // Evita que la página se recargue al enviar el formulario
@@ -18,8 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Oculta mensajes de error previos
         errorMessage.style.display = 'none';
-        submitButton.disabled = true;
-        submitButton.textContent = 'Ingresando...';
 
         // 1. Toma el email del campo de texto
         const email = document.getElementById('email').value;
@@ -38,31 +29,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Si la respuesta no es exitosa (ej. 404, 500), muestra el error
             if (!response.ok) {
-                // Si la respuesta no es OK (ej. 404, 500), muestra el mensaje
-                errorMessage.textContent = result.message || 'Error en el servidor.';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Ingresar';
+                errorMessage.textContent = result.message || 'Ocurrió un error.';
+                errorMessage.style.display = 'block';
                 return;
             }
 
-            // --- INICIO DE LA MODIFICACIÓN ---
-            // 'result' ahora es { token: "...", user: {...} }
-
-            // 1. Guardamos los datos del usuario (para la UI, ej. "Bienvenido, Juan")
-            localStorage.setItem('user', JSON.stringify(result.user));
-            
-            // 2. Guardamos el token por separado (para las solicitudes de API)
-            localStorage.setItem('authToken', result.token);
-            // --- FIN DE LA MODIFICACIÓN ---
+            // 3. Si el login es exitoso, guarda los datos en localStorage
+            localStorage.setItem('user', JSON.stringify(result));
             
             // 4. Redirige al usuario al dashboard
             window.location.href = '/dashboard.html';
 
         } catch (error) {
-            errorMessage.textContent = 'Error de conexión. Intente de nuevo.';
-            submitButton.disabled = false;
-            submitButton.textContent = 'Ingresar';
-            console.error('Error en el login:', error);
+            errorMessage.textContent = 'No se pudo conectar con el servidor. Intenta de nuevo.';
+            errorMessage.style.display = 'block';
+            console.error('Error en el proceso de login:', error);
         }
     });
 });
