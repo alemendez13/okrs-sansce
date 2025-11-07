@@ -11,78 +11,234 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 2. Elementos del DOM para la navegación
-    const navContainer = document.getElementById('nav-container');
+    //const navContainer = document.getElementById('nav-container'); // Ya no es necesario aquí
     const headerTitle = document.getElementById('header-title');
 
-    // 3. Función para construir el menú dinámico
-    function buildNavigation(role) {
-        // El rol siempre será 'admin' en esta página, pero mantenemos la lógica por consistencia
-        let navLinks = `
-            <a href="/catalogo.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Catálogo</a>
-            <a href="/dashboard.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Mi Desempeño</a>
-            <a href="/procesos.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Resultados de Procesos</a>
-            <a href="/empresa.html" class="rounded-md bg-blue-600 px-2 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500">Resultados de la Empresa</a>
-        `;
-        
-        navLinks += `<button id="logout-btn" class="rounded-md bg-red-600 px-2 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-500">Cerrar Sesión</button>`;
+    // Registrar el plugin de datalabels (necesario para las nuevas gráficas)
+    Chart.register(ChartDataLabels);
+    Chart.defaults.plugins.datalabels.display = false; // Desactivado por defecto
 
-        navContainer.innerHTML = navLinks;
-
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            localStorage.removeItem('user');
-            window.location.href = '/index.html';
-        });
+    // ===================================
+    // ***** SECCIÓN ELIMINADA (Paso 1.4) *****
+    //
+    // La función buildNavigation(role) { ... } (aprox. 18 líneas)
+    // ha sido eliminada de este archivo.
+    //
+    // ***** FIN DE LA SECCIÓN ELIMINADA *****
+    // ===================================
+    
+    // 4. Llama a la función global para construir el menú y actualiza el título
+    if (typeof buildNavigation === 'function') {
+        buildNavigation(user.Rol); // Llama a la función global
+    } else {
+        console.error('Error: buildNavigation no está definida. Asegúrate de que shared.js esté cargado.');
     }
-
-    // 4. Llama a la función para construir el menú y actualiza el título
-    buildNavigation(user.Rol);
     headerTitle.textContent = 'Resultados de la Empresa';
 
     // 5. Llama a la función getData para obtener todos los datos (como admin)
+    
+    // --- INICIO DE LA ACTUALIZACIÓN VISUAL ---
+    // Obtenemos los contenedores (igual que en main.js)
+    const kpiContainer = document.getElementById('kpi-container');
+    const rawDataContainer = document.getElementById('rawData');
+    
     fetch(`/.netlify/functions/getData?rol=${user.Rol}&userID=${user.UserID}`)
         .then(response => response.json())
         .then(data => {
             
-            // --- INICIO DE CORRECCIÓN ---
-            // Filtramos los KPIs por el 'kpi_type' que añadimos.
+            // Mantenemos el filtro original de este archivo
             const strategicKpis = data.filter(kpi => kpi.kpi_type === 'estratégico');
-            // --- FIN DE CORRECCIÓN ---
 
-            const dataContainer = document.getElementById('rawData');
-            dataContainer.textContent = JSON.stringify(strategicKpis, null, 2);
+            // Mostramos los datos filtrados en el debug
+            rawDataContainer.textContent = JSON.stringify(strategicKpis, null, 2);
             
-            if (strategicKpis.length === 0) {
-                 document.getElementById('myChart').innerHTML = '<p>No se encontraron KPIs estratégicos.</p>';
+            if (!strategicKpis || strategicKpis.length === 0) {
+                 kpiContainer.innerHTML = '<p>No se encontraron KPIs estratégicos.</p>';
                  return;
             }
             
-            const ctx = document.getElementById('myChart').getContext('2d');
-            
-            // --- INICIO DE CORRECCIÓN ---
-            // Mapeamos desde el objeto 'kpi' procesado
-            const labels = strategicKpis.map(kpi => kpi.kpi_name);
-            const values = strategicKpis.map(kpi => kpi.latestPeriod.ValorNum); // Usamos el valor numérico
-            // --- FIN DE CORRECCIÓN ---
+            // --- INICIO DE LÓGICA COPIADA DE MAIN.JS ---
+            // (Aplicada al array 'strategicKpis')
 
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Desempeño Estratégico',
-                        data: values,
-                        backgroundColor: 'rgba(79, 70, 229, 0.2)', // Azul
-                        borderColor: 'rgba(79, 70, 229, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'top' },
-                    }
-                }
+            let allKpisHtml = '';
+            
+            // 1. Construir el HTML para todas las tarjetas
+            strategicKpis.forEach(kpi => {
+                const periodo = kpi.latestPeriod.Periodo ? new Date(kpi.latestPeriod.Periodo).toLocaleDateString('es-ES', { year: 'numeric', month: 'short' }) : 'N/A';
+                const meta = kpi.latestPeriod.Meta || 'N/A';
+                const resultado = kpi.latestPeriod.Valor || 'N/A';
+                // La clase kpiTypeClass siempre será la de 'estratégico' aquí
+                const kpiTypeClass = 'bg-blue-100 text-blue-800'; 
+
+                allKpisHtml += `
+                    <div class="flex flex-col rounded-lg bg-white shadow-lg overflow-hidden">
+                        <!-- Encabezado de la Tarjeta -->
+                        <div class="p-4 border-b border-slate-200">
+                            <h3 class="text-base font-semibold text-slate-900 truncate">${kpi.kpi_name}</h3>
+                            <span class="text-xs font-medium px-2 py-0.5 rounded-full ${kpiTypeClass}">${kpi.kpi_type}</span>
+                            <p class="text-sm font-medium text-slate-500 mt-1 truncate">Resp: ${kpi.kpi_owner || 'N/A'}</p>
+                        </div>
+                        
+                        <!-- Cuerpo de la Tarjeta (Gráficas y Stats) -->
+                        <div class="p-4 space-y-4 flex-1">
+                            <!-- 1. Desempeño del Periodo (Dona) -->
+                            <div>
+                                <h4 class="text-sm font-medium text-slate-600">Desempeño del Periodo (${periodo})</h4>
+                                <div class="flex items-center justify-between mt-1">
+                                    <div class="gauge-container" style="width: 100px; height: 100px;">
+                                        <canvas id="gauge-chart-${kpi.kpi_id}"></canvas>
+                                    </div>
+                                    <div class="text-right flex-1">
+                                        <dl>
+                                            <dt class="text-xs text-slate-500">Resultado</dt>
+                                            <dd class="text-xl font-bold text-blue-600">${resultado}</dd>
+                                            <dt class="text-xs text-slate-500 mt-1">Meta</dt>
+                                            <dd class="text-sm text-slate-600">${meta}</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Histórico (Línea) -->
+                            <div>
+                                <h4 class="text-sm font-medium text-slate-600">Acumulado Histórico</h4>
+                                <div class="chart-container mt-2">
+                                    <canvas id="historical-chart-${kpi.kpi_id}"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- 3. Progreso Anual (Barra) -->
+                            <div>
+                                <h4 class="text-sm font-medium text-slate-600">Progreso vs Meta Anual</h4>
+                                <div class="chart-container mt-2">
+                                    <canvas id="annual-chart-${kpi.kpi_id}"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             });
+
+            // 2. Insertar el HTML en el DOM
+            kpiContainer.innerHTML = allKpisHtml;
+
+            // 3. Renderizar las gráficas AHORA que los canvas existen
+            // (Usando 'strategicKpis')
+            strategicKpis.forEach(kpi => {
+                const meta = kpi.latestPeriod.MetaNum;
+                const valor = kpi.latestPeriod.ValorNum;
+                const achievement = meta > 0 ? (valor / meta) * 100 : 0;
+                const remaining = Math.max(0, 100 - achievement);
+
+                // Gráfica 1: Desempeño del Periodo (Dona)
+                const gaugeCtx = document.getElementById(`gauge-chart-${kpi.kpi_id}`).getContext('2d');
+                new Chart(gaugeCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Alcanzado', 'Faltante'],
+                        datasets: [{
+                            data: [achievement, remaining],
+                            backgroundColor: ['rgba(37, 99, 235, 1)', 'rgba(226, 232, 240, 1)'],
+                            borderColor: ['rgba(37, 99, 235, 1)', 'rgba(226, 232, 240, 1)'],
+                            borderWidth: 1,
+                            circumference: 180, // Media dona
+                            rotation: 270,      // Empezar desde abajo
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false },
+                            datalabels: {
+                                display: true,
+                                color: '#1e3a8a',
+                                font: { weight: 'bold', size: 20 },
+                                formatter: (value, context) => {
+                                    if (context.dataIndex === 0) return `${value.toFixed(0)}%`;
+                                    return '';
+                                },
+                                translateY: -20
+                            }
+                        },
+                        cutout: '70%'
+                    }
+                });
+
+                // Gráfica 2: Histórico (Línea)
+                const historicalCtx = document.getElementById(`historical-chart-${kpi.kpi_id}`).getContext('2d');
+                new Chart(historicalCtx, {
+                    type: 'line',
+                    data: {
+                        labels: kpi.historicalData.map(d => new Date(d.Periodo).toLocaleDateString('es-ES', { month: 'short' })),
+                        datasets: [{
+                            label: 'Resultado',
+                            data: kpi.historicalData.map(d => d.Valor),
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            fill: true,
+                            tension: 0.1,
+                            pointRadius: 2
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { ticks: { font: { size: 10 } } },
+                            x: { ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+
+                // Gráfica 3: Progreso Anual (Barra)
+                const annualCtx = document.getElementById(`annual-chart-${kpi.kpi_id}`).getContext('2d');
+                new Chart(annualCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Progreso Anual'],
+                        datasets: [
+                            {
+                                label: 'Acumulado',
+                                data: [kpi.annualProgress.Acumulado],
+                                backgroundColor: 'rgba(37, 99, 235, 1)',
+                                barPercentage: 0.5
+                            },
+                            {
+                                label: 'Meta',
+                                data: [kpi.annualProgress.Meta],
+                                backgroundColor: 'rgba(203, 213, 225, 1)',
+                                barPercentage: 0.5
+                            }
+                        ]
+                    },
+                    options: { 
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: true, position: 'bottom', labels: { font: { size: 10 } } },
+                            datalabels: {
+                                display: true,
+                                color: 'white',
+                                font: { size: 10, weight: 'bold' },
+                                formatter: (value) => value.toLocaleString()
+                            }
+                        },
+                        scales: {
+                            x: { display: false, stacked: true },
+                            y: { display: false, stacked: true }
+                        }
+                    }
+                });
+            });
+            // --- FIN DE LÓGICA COPIADA DE MAIN.JS ---
+
         })
-        .catch(error => console.error('Error al cargar datos de la empresa:', error));
+        .catch(error => {
+            kpiContainer.innerHTML = `<p class="text-red-600">Ocurrió un error al cargar los datos: ${error.message}</p>`;
+            console.error('Error al cargar datos de la empresa:', error);
+        });
 });

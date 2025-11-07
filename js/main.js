@@ -6,42 +6,31 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const navContainer = document.getElementById('nav-container');
+    //const navContainer = document.getElementById('nav-container'); // Ya no es necesario aquí
     const headerTitle = document.getElementById('header-title');
     
     // Registrar el plugin de datalabels globalmente
     Chart.register(ChartDataLabels);
     Chart.defaults.plugins.datalabels.display = false; // Desactivado por defecto
 
-    // --- LÓGICA DE NAVEGACIÓN (Sin cambios) ---
-    function buildNavigation(role) {
-        let navLinks = `
-            <a href="/catalogo.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Catálogo</a>
-            <a href="/dashboard.html" class="rounded-md bg-blue-600 px-2 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500">Mi Desempeño</a>
-        `;
+    // --- LÓGICA DE NAVEGACIÓN (Refactorizada) ---
+    //
+    // ===================================
+    // ***** SECCIÓN ELIMINADA (Paso 1.2) *****
+    //
+    // La función buildNavigation(role) { ... } (aprox. 28 líneas)
+    // ha sido eliminada de este archivo.
+    //
+    // ***** FIN DE LA SECCIÓN ELIMINADA *****
+    // ===================================
 
-        if (role === 'coordinador') {
-            navLinks += `<a href="/procesos.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Resultados de Procesos</a>`;
-        }
-
-        if (role === 'admin') {
-            navLinks += `
-                <a href="/procesos.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Resultados de Procesos</a>
-                <a href="/empresa.html" class="rounded-md bg-white px-2 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Resultados de la Empresa</a>
-            `;
-        }
-        
-        navLinks += `<button id="logout-btn" class="rounded-md bg-red-600 px-2 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-500">Cerrar Sesión</button>`;
-
-        navContainer.innerHTML = navLinks;
-
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            localStorage.removeItem('user');
-            window.location.href = '/index.html';
-        });
+    // La función AHORA es global, cargada desde /js/shared.js
+    if (typeof buildNavigation === 'function') {
+        buildNavigation(user.Rol); // Se mantiene la *llamada*
+    } else {
+        console.error('Error: buildNavigation no está definida. Asegúrate de que shared.js esté cargado.');
     }
 
-    buildNavigation(user.Rol);
     headerTitle.textContent = `Bienvenido, ${user.NombreCompleto}`;
 
     // --- INICIO DE LA MODIFICACIÓN ---
