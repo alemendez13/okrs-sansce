@@ -83,6 +83,26 @@ exports.handler = async function (event, context) {
       return newRow;
     });
 
+    let finalHeaders = [...headers];
+
+    // =======================================================================
+    // MODIFICACIÓN 5: Ocultar la columna "EsFinanciero"
+    // =======================================================================
+    
+    // 1. Encontrar el índice de la columna a ocultar
+    const financieroIndex = finalHeaders.indexOf('EsFinanciero');
+
+    if (financieroIndex > -1) {
+      // 2. Filtrar los headers
+      finalHeaders = finalHeaders.filter((header, index) => index !== financieroIndex);
+
+      // 3. Filtrar cada fila de datos
+      finalRows = finalRows.map(row => {
+        // Devuelve una nueva fila sin el elemento en esa posición
+        return row.filter((cell, index) => index !== financieroIndex);
+      });
+    }
+
     // 3. Volver a armar el array con los headers originales y las filas transformadas
     const finalData = [headers, ...transformedRows];
 
