@@ -17,13 +17,8 @@ const sheetDataToObject = (rows) => {
 
 // Función principal
 exports.handler = async function (event, context) {
-
-console.log('--- INICIANDO FUNCIÓN getData ---');
-
   try {
     const { rol, userID } = event.queryStringParameters;
-
-    console.log(`Parámetros recibidos: rol=${rol}, userID=${userID}`);
 
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -37,8 +32,8 @@ console.log('--- INICIANDO FUNCIÓN getData ---');
 
     // 1. Obtener todos los datos en paralelo
     const [resultsResponse, usersResponse, catalogResponse] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:E' }),
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Usuarios!A:E' }),
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:F' }),
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Usuarios!A:F' }),
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:G' }), // Lee hasta la Col G (Responsable)
     ]);
 
@@ -57,7 +52,6 @@ console.log('--- INICIANDO FUNCIÓN getData ---');
 
     const currentUser = allUsers.find(u => u.UserID === userID);
     if (!currentUser) {
-      console.error('Error de DEBUG: Usuario de sesión no encontrado en allUsers');
       return { statusCode: 404, body: JSON.stringify({ message: 'Usuario de sesión no encontrado' }) };
     }
     
@@ -66,26 +60,10 @@ console.log('--- INICIANDO FUNCIÓN getData ---');
     // Obtenemos los UserID (no los Nombres) de los miembros del equipo.
     // =======================================================================
 
-    console.log(`Usuario actual encontrado: UserID=${currentUser.UserID}, EquipoID=${currentUser.EquipoID}, Rol=${currentUser.Rol}`);
-
+    // Con la corrección (A:F), currentUser.EquipoID ahora tendrá "Cli"
     const userTeamIDs = allUsers
-      // =======================================================================
-      // LOG 3: DEBUG DE LA LÓGICA DE EQUIPO
-      // =======================================================================
-      .filter(u => {
-        const match = u.EquipoID === currentUser.EquipoID;
-        // Mostramos solo las discrepancias o coincidencias
-        if (match || u.UserID === 'Admon-01') {
-            console.log(`Comparando EquipoID: (Usuario: ${u.UserID}, Equipo: '${u.EquipoID}') === (Actual: ${currentUser.UserID}, Equipo: '${currentUser.EquipoID}') -> ${match}`);
-        }
-        return match;
-      })
-      .map(u => u.UserID);
-
-    // =======================================================================
-    // LOG 4: VERIFICAR EL ARRAY DE EQUIPO CREADO
-    // =======================================================================
-    console.log('Equipo IDs (userTeamIDs) construido:', JSON.stringify(userTeamIDs)); 
+      .filter(u => u.EquipoID === currentUser.EquipoID) // Esto ahora filtrará correctamente
+      .map(u => u.UserID); 
 
     let allowedKpiIDs = [];
 
@@ -99,34 +77,15 @@ console.log('--- INICIANDO FUNCIÓN getData ---');
     // en la hoja 'CatalogoKPIs' AHORA contiene UserIDs (ej. 'jmendez').
     // =======================================================================
     } else if (rol === 'coordinador') {
-        // Coordinador ve los KPIs donde el Responsable (UserID) es alguien de su equipo (Array de UserIDs)
-        console.log('Filtrando por rol: coordinador');
+      // Ahora userTeamIDs solo tendrá los IDs del equipo "Cli"
         allowedKpiIDs = kpiCatalog
-          .filter(kpi => {
-                const isIncluded = userTeamIDs.includes(kpi.Responsable);
-                // Loguear solo los KPIs que se están incluyendo
-                if (isIncluded) {
-                    console.log(`KPI Permitido (Coordinador): ID=${kpi.KPI_ID}, Responsable=${kpi.Responsable} (Encontrado en userTeamIDs)`);
-                }
-                // Loguear el KPI problemático (Admon-01) si aparece
-                if (kpi.Responsable === 'Admon-01') {
-                     console.log(`KPI 'Admon-01' encontrado: ID=${kpi.KPI_ID}. ¿Está en el equipo? -> ${isIncluded}`);
-                }
-                return isIncluded;
-            })
+            .filter(kpi => userTeamIDs.includes(kpi.Responsable))
             .map(kpi => kpi.KPI_ID);
     } else { // 'general'
-        // General ve solo los KPIs donde el Responsable (UserID) es él mismo (UserID)
-        console.log('Filtrando por rol: general');
         allowedKpiIDs = kpiCatalog
-            .filter(kpi => kpi.Responsable === currentUser.UserID) // Compara UserID === UserID
+            .filter(kpi => kpi.Responsable === currentUser.UserID)
             .map(kpi => kpi.KPI_ID);
     }
-
-      // =======================================================================
-    // LOG 5: VERIFICAR LOS KPIs FINALES PERMITIDOS
-    // =======================================================================
-    console.log('IDs de KPIs permitidos (allowedKpiIDs):', JSON.stringify(allowedKpiIDs));
 
     // =======================================================================
     // --- FIN DE LA MODIFICACIÓN (Fase 2) ---
@@ -209,11 +168,6 @@ console.log('--- INICIANDO FUNCIÓN getData ---');
         }
       };
     });
-
-    // =======================================================================
-    // LOG 6: VERIFICAR EL CONTEO FINAL
-    // =======================================================================
-    console.log(`--- FUNCIÓN getData COMPLETADA. ${processedKpis.length} KPIs procesados para ${userID} ---`);
 
     return {
       statusCode: 200,
