@@ -53,33 +53,25 @@ exports.handler = async function (event, context) {
     // MODIFICACIÓN 4: Transformar los datos del catálogo
     // =======================================================================
 
-    // Obtenemos los datos crudos del catálogo
     const catalogData = catalogResponse.data.values;
     if (!catalogData || catalogData.length < 2) {
-      return { statusCode: 200, body: JSON.stringify([]) }; // Devuelve vacío si no hay datos
+      return { statusCode: 200, body: JSON.stringify([]) };
     }
+
+    const headers = catalogData[0];
+    const dataRows = catalogData.slice(1);
 
     // 1. Encontrar el índice de la columna "Responsable"
-    const headers = catalogData[0];
     const responsableIndex = headers.indexOf('Responsable');
 
-    if (responsableIndex === -1) {
-      // Si no hay columna 'Responsable', devuelve los datos tal cual
-      return { statusCode: 200, body: JSON.stringify(catalogData) };
-    }
-
-    // 2. Iterar SOLO las filas de datos (saltar los headers) y reemplazar el UserID
-    const dataRows = catalogData.slice(1);
-    const transformedRows = dataRows.map(row => {
-      // Hacemos una copia para no modificar el original (buena práctica)
-      const newRow = [...row]; 
-      
-      const responsableId = newRow[responsableIndex]; // ej: "Admon-01"
-      const responsableNombre = userMap.get(responsableId) || responsableId; // ej: "Teresa Vazquez" o "Admon-01" si no se encuentra
-      
-      // Reemplaza el ID con el Nombre en la fila
-      newRow[responsableIndex] = responsableNombre;
-      
+    // 2. Iterar y reemplazar el UserID por el NombreCompleto
+    let finalRows = dataRows.map(row => {
+      const newRow = [...row];
+      if (responsableIndex !== -1) {
+        const responsableId = newRow[responsableIndex]; // ej: "Admon-01"
+        const responsableNombre = userMap.get(responsableId) || responsableId; // ej: "Teresa Vazquez"
+        newRow[responsableIndex] = responsableNombre;
+      }
       return newRow;
     });
 
@@ -103,8 +95,8 @@ exports.handler = async function (event, context) {
       });
     }
 
-    // 3. Volver a armar el array con los headers originales y las filas transformadas
-    const finalData = [headers, ...transformedRows];
+    // 3. Volver a armar el array con los headers y filas finales
+    const finalData = [finalHeaders, ...finalRows];
 
     return {
       statusCode: 200,
