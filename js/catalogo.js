@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const headers = data[0];
+            const headers = data[0]; // Ahora tiene 7 headers (incl. Frecuencia, MetodoAgregacion)
             const rows = data.slice(1);
 
             // --- INICIO DE LA MODIFICACIÓN ---
@@ -86,35 +86,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 visibleCells.forEach((cell, index) => {
                     let cellClass = '';
 
-                    // --- INICIO DE LA MODIFICACIÓN ---
-                    // Asignamos clases de Tailwind CSS basadas en el índice de la columna
-                    // para controlar el ancho y el ajuste de texto.
+                    // --- INICIO DE LA CORRECCIÓN ---
+                    // Reemplaza tu switch/case con este.
+                    // Este SÍ coincide con las 7 columnas que envía el backend.
                     switch (index) {
                         case 0: // KPI_ID
-                            cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6 w-24'; // Ancho fijo
+                            cellClass = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6 w-24';
                             break;
                         case 1: // NombreKPI
-                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5'; // Ancho relativo, permite wrap
+                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5';
                             break;
                         case 2: // Descripcion
-                            cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal w-2/5'; // Ancho relativo más grande
+                            cellClass = 'py-4 px-3 text-sm text-slate-600 whitespace-normal w-2/5';
                             break;
                         case 3: // Tipo
-                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24';
                             break;
                         case 4: // Frecuencia
-                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24';
                             break;
-                        case 5: // EsFinanciero
-                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24'; // Ancho fijo
+                        case 5: // Responsable (índice 5)
+                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5';
                             break;
-                        case 6: // Responsable
-                            cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5'; // Ancho relativo, permite wrap
+                        case 6: // MetodoAgregacion (índice 6)
+                            cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24';
                             break;
-                        default: // Fallback
+                        default: 
                             cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500';
                     }
-                    // --- FIN DE LA MODIFICACIÓN ---
+                    // --- FIN DE LA CORRECCIÓN ---
 
                     
                     bodyHtml += `<td class="${cellClass}">${cell}</td>`;
