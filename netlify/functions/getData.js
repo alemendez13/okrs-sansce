@@ -32,9 +32,9 @@ exports.handler = async function (event, context) {
 
     // 1. Obtener todos los datos en paralelo
     const [resultsResponse, usersResponse, catalogResponse] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:F' }),
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:G' }),
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Usuarios!A:F' }),
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:G' }), // Lee hasta la Col G (Responsable)
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:H' }), // Lee hasta la Col H
     ]);
 
     const allResults = sheetDataToObject(resultsResponse.data.values);
@@ -116,32 +116,85 @@ exports.handler = async function (event, context) {
           kpi_type: kpiInfo ? kpiInfo.Tipo : 'N/A',
           kpi_owner: responsableNombre, // <-- CORRECCIÓN: Asigna el Nombre Completo (ej. 'Jorge Méndez Pérez')
           is_financial: kpiInfo && (kpiInfo.EsFinanciero === 'TRUE' || kpiInfo.EsFinanciero === 'SI'),
+          // Guardamos las reglas de negocio para usarlas después
+          kpi_frequency: kpiInfo ? kpiInfo.Frecuencia : 'mensual', // default
+          kpi_aggregation: kpiInfo ? kpiInfo.MetodoAgregacion : 'SUMA', // default
+          
           results: []
         };
       }
       groupedData[result.KPI_ID].results.push(result);
     }
 
-    // 6. Procesar cada grupo de KPIs (Cálculos)
+    // 6. Procesar cada grupo de KPIs (Cálculos) - ¡LA GRAN MODIFICACIÓN!
     const processedKpis = Object.values(groupedData).map(kpiGroup => {
-      const sortedResults = kpiGroup.results.sort((a, b) => new Date(b.Periodo) - new Date(a.Periodo));
+      
+      // 6.1. Filtrar resultados por la frecuencia OFICIAL del KPI
+      // Esto ignora datos "sucios" (ej. ignora registros diarios de un KPI mensual)
+      const relevantResults = kpiGroup.results
+        .filter(r => r.Frecuencia === kpiGroup.kpi_frequency)
+        .map(r => {
+           // Convertir a números aquí para facilitar los cálculos
+           const metaNum = parseFloat(String(r.Meta).replace(/[^0-9.-]+/g, "")) || 0;
+           const valorNum = parseFloat(String(r.Valor).replace(/[^0-9.-]+/g, "")) || 0;
+           return { ...r, MetaNum: metaNum, ValorNum: valorNum };
+        });
+
+      if (relevantResults.length === 0) {
+        // Si no hay datos VÁLIDOS, retornar un KPI vacío para no romper la UI
+        return {
+          kpi_name: kpiGroup.kpi_name,
+          kpi_id: kpiGroup.kpi_id,
+          kpi_type: kpiGroup.kpi_type,
+          kpi_owner: kpiGroup.kpi_owner,
+          latestPeriod: { Periodo: 'N/A', Meta: 'N/A', Valor: 'N/A', MetaNum: 0, ValorNum: 0 },
+          historicalData: [],
+          annualProgress: { Meta: 0, Acumulado: 0 }
+        };
+      }
+
+      const sortedResults = relevantResults.sort((a, b) => new Date(b.Periodo) - new Date(a.Periodo));
       const latestResult = sortedResults[0];
 
-      // Calcular totales anuales
+      // 6.2. Lógica de "Progreso Anual" (Gráfica de Barra)
       let annualMeta = 0;
       let annualValor = 0;
-      sortedResults.forEach(r => {
-        annualMeta += parseFloat(String(r.Meta).replace(/[^0-9.-]+/g, "")) || 0;
-        annualValor += parseFloat(String(r.Valor).replace(/[^0-9.-]+/g, "")) || 0;
-      });
-      
-      const latestMeta = parseFloat(String(latestResult.Meta).replace(/[^0-9.-]+/g, "")) || 0;
-      const latestValor = parseFloat(String(latestResult.Valor).replace(/[^0-9.-]+/g, "")) || 0;
 
-      // Regla de Negocio: Ocultar valor financiero para rol 'general'
+      if (kpiGroup.kpi_frequency === 'anual') {
+        // Si el KPI es ANUAL, el "total" es simplemente el último valor.
+        annualMeta = latestResult.MetaNum;
+        annualValor = latestResult.ValorNum;
+      } else {
+        // Si es mensual, semanal, etc., aplicamos el método de agregación
+        switch (kpiGroup.kpi_aggregation) {
+          case 'PROMEDIO':
+            const sum = sortedResults.reduce((acc, r) => acc + r.ValorNum, 0);
+            annualValor = sortedResults.length > 0 ? sum / sortedResults.length : 0;
+            // La meta para un promedio es usualmente la meta del último periodo
+            annualMeta = latestResult.MetaNum; 
+            break;
+          
+          case 'ULTIMO_VALOR':
+            // El "total" es solo el valor del último periodo
+            annualValor = latestResult.ValorNum;
+            annualMeta = latestResult.MetaNum;
+            break;
+            
+          case 'SUMA':
+          default:
+            // Esta es la lógica original de la app
+            sortedResults.forEach(r => {
+              annualMeta += r.MetaNum;
+              annualValor += r.ValorNum;
+            });
+            break;
+        }
+      }
+
+      // 6.3. Lógica de Regla Financiera (esto sigue igual)
       let displayValor = latestResult.Valor;
       if (rol === 'general' && kpiGroup.is_financial) {
-          const achievement = latestMeta > 0 ? (latestValor / latestMeta) * 100 : 0;
+          const achievement = latestResult.MetaNum > 0 ? (latestResult.ValorNum / latestResult.MetaNum) * 100 : 0;
           displayValor = achievement.toFixed(2) + '%';
       }
 
@@ -155,12 +208,12 @@ exports.handler = async function (event, context) {
           Periodo: latestResult.Periodo,
           Meta: latestResult.Meta,
           Valor: displayValor,
-          MetaNum: latestMeta,
-          ValorNum: latestValor
+          MetaNum: latestResult.MetaNum,
+          ValorNum: latestResult.ValorNum
         },
-        historicalData: sortedResults.map(r => ({
+        historicalData: sortedResults.map(r => ({ // El histórico ya está filtrado por frecuencia
           Periodo: r.Periodo,
-          Valor: parseFloat(String(r.Valor).replace(/[^0-9.-]+/g, "")) || 0
+          Valor: r.ValorNum
         })).reverse(), 
         annualProgress: {
           Meta: annualMeta,
@@ -168,6 +221,8 @@ exports.handler = async function (event, context) {
         }
       };
     });
+
+    // --- FIN DE LA MODIFICACIÓN (Fase 1) ---
 
     return {
       statusCode: 200,

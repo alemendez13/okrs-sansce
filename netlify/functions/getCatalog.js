@@ -35,7 +35,7 @@ exports.handler = async function (event, context) {
     const [catalogResponse, usersResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        range: 'CatalogoKPIs!A:G', // Lee todas las columnas de la hoja CatalogoKPIs
+        range: 'CatalogoKPIs!A:H', // Lee todas las columnas de la hoja CatalogoKPIs
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
@@ -95,7 +95,8 @@ exports.handler = async function (event, context) {
       });
     }
 
-    // 3. Volver a armar el array con los headers y filas finales
+    // 7. Volver a armar el array con los headers y filas finales
+    // (Ahora tendrá 7 columnas: 8 originales - 1 oculta)
     const finalData = [finalHeaders, ...finalRows];
 
     return {
