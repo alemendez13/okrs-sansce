@@ -48,15 +48,20 @@
               INICIO DE LA ACTUALIZACIÓN VISUAL
               Reemplazamos el canvas único por el grid de KPIs del dashboard.
             -->
-            <div id="kpi-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Las tarjetas de KPIs (estratégicos) se insertarán aquí por JS -->
+            <div id="okr-container" class="space-y-6">
             </div>
             <!-- FIN DE LA ACTUALIZACIÓN VISUAL -->
 
-            <div class="mt-8 rounded-lg bg-white p-6 shadow">
-                <h2 class="text-lg font-semibold leading-6 text-slate-900">Datos Recibidos (Debug)</h2>
-                <pre id="rawData" class="mt-4 overflow-x-auto rounded bg-slate-100 p-4 text-sm"></pre>
-            </div>
+            <!-- --- INICIO DE LA MODIFICACIÓN (Eliminar Debug) --- -->
+        
+        <!-- 1. ESTAS LÍNEAS SE ELIMINAN:
+        <div class="mt-8 rounded-lg bg-white p-6 shadow">
+            <h2 class="text-lg font-semibold leading-6 text-slate-900">Datos Recibidos (Debug)</h2>
+            <pre id="rawData" class="mt-4 overflow-x-auto rounded bg-slate-100 p-4 text-sm"></pre>
+        </div>
+        -->
+        
+        <!-- --- FIN DE LA MODIFICACIÓN --- -->
 
         </div>
     </main>
