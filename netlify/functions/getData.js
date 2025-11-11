@@ -15,7 +15,8 @@ const sheetDataToObject = (rows) => {
   });
 };
 
-// Función principal
+// --- INICIO DE LA MODIFICACIÓN (Fase 1 - OKR) ---
+
 exports.handler = async function (event, context) {
   try {
     const { rol, userID } = event.queryStringParameters;
@@ -30,54 +31,43 @@ exports.handler = async function (event, context) {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // 1. Obtener todos los datos en paralelo
-    const [resultsResponse, usersResponse, catalogResponse] = await Promise.all([
+    // 1. Obtener TODOS los datos de las 5 hojas en paralelo
+    const [
+      resultsResponse, 
+      usersResponse, 
+      catalogResponse, 
+      krResponse, 
+      objectivesResponse
+    ] = await Promise.all([
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:G' }),
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Usuarios!A:F' }),
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:H' }), // Lee hasta la Col H
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:I' }), // Lee hasta la Col I (KR_ID)
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'ResultadosClave!A:C' }), // NUEVA HOJA
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Objetivos!A:D' })  // NUEVA HOJA
     ]);
 
+    // 2. Convertir todos los datos a objetos
     const allResults = sheetDataToObject(resultsResponse.data.values);
     const allUsers = sheetDataToObject(usersResponse.data.values);
     const kpiCatalog = sheetDataToObject(catalogResponse.data.values);
+    const allKRs = sheetDataToObject(krResponse.data.values);
+    const allObjectives = sheetDataToObject(objectivesResponse.data.values);
 
-    // --- INICIO DE LA MODIFICACIÓN (Fase 2 - Lógica de Roles) ---
-
-    // =======================================================================
-    // MODIFICACIÓN 1: Crear un Mapa de Búsqueda de Usuarios
-    // Esto nos permite encontrar un NombreCompleto (para la UI) usando un UserID.
-    // Ej: userMap.get('jmendez') -> 'Jorge Méndez Pérez'
-    // =======================================================================
+    // 3. Lógica de Roles y Mapeo (Esto se mantiene)
     const userMap = new Map(allUsers.map(user => [user.UserID, user.NombreCompleto]));
-
     const currentUser = allUsers.find(u => u.UserID === userID);
     if (!currentUser) {
       return { statusCode: 404, body: JSON.stringify({ message: 'Usuario de sesión no encontrado' }) };
     }
     
-    // =======================================================================
-    // MODIFICACIÓN 2: Lógica de 'coordinador' robusta
-    // Obtenemos los UserID (no los Nombres) de los miembros del equipo.
-    // =======================================================================
-
-    // Con la corrección (A:F), currentUser.EquipoID ahora tendrá "Cli"
     const userTeamIDs = allUsers
-      .filter(u => u.EquipoID === currentUser.EquipoID) // Esto ahora filtrará correctamente
+      .filter(u => u.EquipoID === currentUser.EquipoID)
       .map(u => u.UserID); 
 
     let allowedKpiIDs = [];
-
-    // 3. Filtrar KPIs basado en el Rol (Propiedad/Responsabilidad, no quién reportó)
     if (rol === 'admin') {
-        // Admin ve todos los KPIs
         allowedKpiIDs = kpiCatalog.map(kpi => kpi.KPI_ID);
-    // =======================================================================
-    // MODIFICACIÓN 3: Lógica de filtrado robusta (Paso 2.2 del plan)
-    // Comparamos UserID con UserID, asumiendo que la Col G (Responsable)
-    // en la hoja 'CatalogoKPIs' AHORA contiene UserIDs (ej. 'jmendez').
-    // =======================================================================
     } else if (rol === 'coordinador') {
-      // Ahora userTeamIDs solo tendrá los IDs del equipo "Cli"
         allowedKpiIDs = kpiCatalog
             .filter(kpi => userTeamIDs.includes(kpi.Responsable))
             .map(kpi => kpi.KPI_ID);
@@ -87,66 +77,48 @@ exports.handler = async function (event, context) {
             .map(kpi => kpi.KPI_ID);
     }
 
-    // =======================================================================
-    // --- FIN DE LA MODIFICACIÓN (Fase 2) ---
-    // =======================================================================
-
     // 4. Filtrar los resultados basado en los KPIs permitidos
     const userVisibleResults = allResults.filter(result => allowedKpiIDs.includes(result.KPI_ID));
     
-    // --- FIN DE LA MODIFICACIÓN ---
-
     // 5. Agrupar los resultados visibles por KPI_ID
     const groupedData = {};
     for (const result of userVisibleResults) {
       if (!groupedData[result.KPI_ID]) {
         const kpiInfo = kpiCatalog.find(k => k.KPI_ID === result.KPI_ID);
+        if (!kpiInfo) continue; // Si el KPI no está en el catálogo, ignorarlo
 
-        // =======================================================================
-        // MODIFICACIÓN 4: Mapeo de UserID a NombreCompleto (Paso 2.2 del plan)
-        // kpiInfo.Responsable AHORA es un UserID (ej. 'jmendez')
-        // Usamos el 'userMap' para encontrar el nombre legible (ej. 'Jorge Méndez Pérez')
-        // =======================================================================
-        const responsableId = kpiInfo ? kpiInfo.Responsable : null;
+        const responsableId = kpiInfo.Responsable;
         const responsableNombre = userMap.get(responsableId) || 'Responsable no asignado';
 
         groupedData[result.KPI_ID] = {
           kpi_id: result.KPI_ID,
-          kpi_name: kpiInfo ? kpiInfo.NombreKPI : 'Unknown KPI',
-          kpi_type: kpiInfo ? kpiInfo.Tipo : 'N/A',
-          kpi_owner: responsableNombre, // <-- CORRECCIÓN: Asigna el Nombre Completo (ej. 'Jorge Méndez Pérez')
-          is_financial: kpiInfo && (kpiInfo.EsFinanciero === 'TRUE' || kpiInfo.EsFinanciero === 'SI'),
-          // Guardamos las reglas de negocio para usarlas después
-          kpi_frequency: kpiInfo ? kpiInfo.Frecuencia : 'mensual', // default
-          kpi_aggregation: kpiInfo ? kpiInfo.MetodoAgregacion : 'SUMA', // default
-          
+          kpi_name: kpiInfo.NombreKPI,
+          kpi_type: kpiInfo.Tipo,
+          kpi_owner: responsableNombre,
+          is_financial: (kpiInfo.EsFinanciero === 'TRUE' || kpiInfo.EsFinanciero === 'SI'),
+          kpi_frequency: kpiInfo.Frecuencia || 'mensual',
+          kpi_aggregation: kpiInfo.MetodoAgregacion || 'SUMA',
+          kpi_kr_id: kpiInfo.KR_ID, // <-- AÑADIMOS EL VÍNCULO AL KR
           results: []
         };
       }
       groupedData[result.KPI_ID].results.push(result);
     }
 
-    // 6. Procesar cada grupo de KPIs (Cálculos) - ¡LA GRAN MODIFICACIÓN!
+    // 6. Procesar cada grupo de KPIs (LÓGICA DE AGREGACIÓN INTELIGENTE - SE MANTIENE)
     const processedKpis = Object.values(groupedData).map(kpiGroup => {
       
-      // 6.1. Filtrar resultados por la frecuencia OFICIAL del KPI
-      // Esto ignora datos "sucios" (ej. ignora registros diarios de un KPI mensual)
       const relevantResults = kpiGroup.results
         .filter(r => r.Frecuencia === kpiGroup.kpi_frequency)
         .map(r => {
-           // Convertir a números aquí para facilitar los cálculos
            const metaNum = parseFloat(String(r.Meta).replace(/[^0-9.-]+/g, "")) || 0;
            const valorNum = parseFloat(String(r.Valor).replace(/[^0-9.-]+/g, "")) || 0;
            return { ...r, MetaNum: metaNum, ValorNum: valorNum };
         });
 
       if (relevantResults.length === 0) {
-        // Si no hay datos VÁLIDOS, retornar un KPI vacío para no romper la UI
         return {
-          kpi_name: kpiGroup.kpi_name,
-          kpi_id: kpiGroup.kpi_id,
-          kpi_type: kpiGroup.kpi_type,
-          kpi_owner: kpiGroup.kpi_owner,
+          ...kpiGroup, // Devolvemos los datos del grupo
           latestPeriod: { Periodo: 'N/A', Meta: 'N/A', Valor: 'N/A', MetaNum: 0, ValorNum: 0 },
           historicalData: [],
           annualProgress: { Meta: 0, Acumulado: 0 }
@@ -156,33 +128,25 @@ exports.handler = async function (event, context) {
       const sortedResults = relevantResults.sort((a, b) => new Date(b.Periodo) - new Date(a.Periodo));
       const latestResult = sortedResults[0];
 
-      // 6.2. Lógica de "Progreso Anual" (Gráfica de Barra)
       let annualMeta = 0;
       let annualValor = 0;
 
       if (kpiGroup.kpi_frequency === 'anual') {
-        // Si el KPI es ANUAL, el "total" es simplemente el último valor.
         annualMeta = latestResult.MetaNum;
         annualValor = latestResult.ValorNum;
       } else {
-        // Si es mensual, semanal, etc., aplicamos el método de agregación
         switch (kpiGroup.kpi_aggregation) {
           case 'PROMEDIO':
             const sum = sortedResults.reduce((acc, r) => acc + r.ValorNum, 0);
             annualValor = sortedResults.length > 0 ? sum / sortedResults.length : 0;
-            // La meta para un promedio es usualmente la meta del último periodo
             annualMeta = latestResult.MetaNum; 
             break;
-          
           case 'ULTIMO_VALOR':
-            // El "total" es solo el valor del último periodo
             annualValor = latestResult.ValorNum;
             annualMeta = latestResult.MetaNum;
             break;
-            
           case 'SUMA':
           default:
-            // Esta es la lógica original de la app
             sortedResults.forEach(r => {
               annualMeta += r.MetaNum;
               annualValor += r.ValorNum;
@@ -191,7 +155,6 @@ exports.handler = async function (event, context) {
         }
       }
 
-      // 6.3. Lógica de Regla Financiera (esto sigue igual)
       let displayValor = latestResult.Valor;
       if (rol === 'general' && kpiGroup.is_financial) {
           const achievement = latestResult.MetaNum > 0 ? (latestResult.ValorNum / latestResult.MetaNum) * 100 : 0;
@@ -203,6 +166,7 @@ exports.handler = async function (event, context) {
         kpi_id: kpiGroup.kpi_id,
         kpi_type: kpiGroup.kpi_type,
         kpi_owner: kpiGroup.kpi_owner, 
+        kpi_kr_id: kpiGroup.kpi_kr_id, // <-- Pasamos el KR_ID
         
         latestPeriod: {
           Periodo: latestResult.Periodo,
@@ -211,7 +175,7 @@ exports.handler = async function (event, context) {
           MetaNum: latestResult.MetaNum,
           ValorNum: latestResult.ValorNum
         },
-        historicalData: sortedResults.map(r => ({ // El histórico ya está filtrado por frecuencia
+        historicalData: sortedResults.map(r => ({
           Periodo: r.Periodo,
           Valor: r.ValorNum
         })).reverse(), 
@@ -222,11 +186,36 @@ exports.handler = async function (event, context) {
       };
     });
 
-    // --- FIN DE LA MODIFICACIÓN (Fase 1) ---
+    // 7. CONSTRUCCIÓN DE JERARQUÍA (¡LÓGICA NUEVA!)
+    // Anidamos la lista plana de KPIs (processedKpis) dentro de los KRs y Objetivos
 
+    // 7.1 Mapear KPIs dentro de sus KRs
+    const krsWithKpis = allKRs.map(kr => {
+      return {
+        KR_ID: kr.KR_ID,
+        Nombre_KR: kr.Nombre_KR,
+        Objective_ID: kr.Objective_ID,
+        // Filtramos la lista de KPIs procesados para encontrar los que pertenecen a este KR
+        KPIs: processedKpis.filter(kpi => kpi.kpi_kr_id === kr.KR_ID)
+      };
+    }).filter(kr => kr.KPIs.length > 0); // Solo mostramos KRs que tengan KPIs visibles para el usuario
+
+    // 7.2 Mapear KRs (con sus KPIs) dentro de sus Objetivos
+    const finalHierarchicalData = allObjectives.map(obj => {
+      return {
+        Objective_ID: obj.Objective_ID,
+        Nombre_Objetivo: obj.Nombre_Objetivo,
+        Color_Primario: obj.Color_Primario || '#475569', // Color por defecto
+        Color_Secundario: obj.Color_Secundario || '#f1f5f9', // Color por defecto
+        // Filtramos la lista de KRs para encontrar los que pertenecen a este Objetivo
+        ResultadosClave: krsWithKpis.filter(kr => kr.Objective_ID === obj.Objective_ID)
+      };
+    }).filter(obj => obj.ResultadosClave.length > 0); // Solo mostramos Objetivos que tengan KRs visibles
+
+    // 8. Devolver la nueva estructura anidada
     return {
       statusCode: 200,
-      body: JSON.stringify(processedKpis),
+      body: JSON.stringify(finalHierarchicalData), // Devolvemos los datos jerárquicos
     };
 
   } catch (error) {
@@ -237,3 +226,4 @@ exports.handler = async function (event, context) {
     };
   }
 };
+// --- FIN DE LA MODIFICACIÓN (Fase 1 - OKR) ---
