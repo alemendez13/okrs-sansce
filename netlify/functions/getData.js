@@ -155,6 +155,20 @@ exports.handler = async function (event, context) {
         }
       }
 
+      // --- INICIO DE LA MODIFICACIÓN (Fase 1.1 - Promedio KPI) ---
+      // Calcular el % de avance de este KPI individual
+      let kpi_achievement = 0;
+      if (annualMeta > 0) {
+        // Asumimos que más es mejor. Si un KPI es inverso (ej. 'costos'),
+        // la lógica de agregación en Google Sheets debería manejarlo (ej. 1 - (costo/meta)).
+        kpi_achievement = (annualValor / annualMeta) * 100;
+      } else if (annualValor > 0) {
+        // Si no hay meta pero sí hay valor (ej. # de errores), contamos como 0%
+        // (o 100% si es un KPI positivo sin meta)
+        kpi_achievement = 100; // Asumimos 100% si la meta es 0 y hay valor
+      }
+      // --- FIN DE LA MODIFICACIÓN (Fase 1.1) ---
+
       let displayValor = latestResult.Valor;
       if (rol === 'general' && kpiGroup.is_financial) {
           const achievement = latestResult.MetaNum > 0 ? (latestResult.ValorNum / latestResult.MetaNum) * 100 : 0;
@@ -167,6 +181,9 @@ exports.handler = async function (event, context) {
         kpi_type: kpiGroup.kpi_type,
         kpi_owner: kpiGroup.kpi_owner, 
         kpi_kr_id: kpiGroup.kpi_kr_id, // <-- Pasamos el KR_ID
+        // --- INICIO DE LA MODIFICACIÓN (Fase 1.2 - Promedio KPI) ---
+        kpi_achievement: kpi_achievement, // <-- Pasamos el % de avance
+        // --- FIN DE LA MODIFICACIÓN (Fase 1.2) ---
         
         latestPeriod: {
           Periodo: latestResult.Periodo,
@@ -189,26 +206,47 @@ exports.handler = async function (event, context) {
     // 7. CONSTRUCCIÓN DE JERARQUÍA (¡LÓGICA NUEVA!)
     // Anidamos la lista plana de KPIs (processedKpis) dentro de los KRs y Objetivos
 
+    // --- INICIO DE LA MODIFICACIÓN (Fase 1.3 - Promedio KR y Objetivo) ---
+    // Helper para promediar un array de números
+    const calculateAverage = (arr) => {
+      if (!arr || arr.length === 0) return 0;
+      const sum = arr.reduce((acc, val) => acc + val, 0);
+      return sum / arr.length;
+    };
+
     // 7.1 Mapear KPIs dentro de sus KRs
     const krsWithKpis = allKRs.map(kr => {
+      const childKpis = processedKpis.filter(kpi => kpi.kpi_kr_id === kr.KR_ID);
+
+      // Calcular el promedio de este KR basado en sus KPIs hijos
+      const kpiAchievements = childKpis.map(kpi => kpi.kpi_achievement);
+      const krAverage = calculateAverage(kpiAchievements);
+
       return {
         KR_ID: kr.KR_ID,
         Nombre_KR: kr.Nombre_KR,
         Objective_ID: kr.Objective_ID,
+        KR_Average: krAverage, // <-- NUEVO: Promedio del KR
         // Filtramos la lista de KPIs procesados para encontrar los que pertenecen a este KR
-        KPIs: processedKpis.filter(kpi => kpi.kpi_kr_id === kr.KR_ID)
+        KPIs: childKpis
       };
     }).filter(kr => kr.KPIs.length > 0); // Solo mostramos KRs que tengan KPIs visibles para el usuario
 
     // 7.2 Mapear KRs (con sus KPIs) dentro de sus Objetivos
     const finalHierarchicalData = allObjectives.map(obj => {
+      const childKrs = krsWithKpis.filter(kr => kr.Objective_ID === obj.Objective_ID);
+
+      // Calcular el promedio de este Objetivo basado en sus KRs hijos
+      const krAverages = childKrs.map(kr => kr.KR_Average);
+      const objectiveAverage = calculateAverage(krAverages);
       return {
         Objective_ID: obj.Objective_ID,
         Nombre_Objetivo: obj.Nombre_Objetivo,
         Color_Primario: obj.Color_Primario || '#475569', // Color por defecto
         Color_Secundario: obj.Color_Secundario || '#f1f5f9', // Color por defecto
+        Objective_Average: objectiveAverage, // <-- NUEVO: Promedio del Objetivo
         // Filtramos la lista de KRs para encontrar los que pertenecen a este Objetivo
-        ResultadosClave: krsWithKpis.filter(kr => kr.Objective_ID === obj.Objective_ID)
+        ResultadosClave: childKrs
       };
     }).filter(obj => obj.ResultadosClave.length > 0); // Solo mostramos Objetivos que tengan KRs visibles
 
