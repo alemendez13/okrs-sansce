@@ -41,10 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // Bucle 1: Objetivos
             data.forEach(objetivo => {
                 finalHtml += `<details class="bg-white shadow rounded-lg" open>`;
-                finalHtml += `<summary class="p-4 cursor-pointer flex justify-between items-center rounded-t-lg" style="background-color: ${objetivo.Color_Primario}; color: white; font-weight: bold;">
-                                <span>${objetivo.Nombre_Objetivo}</span>
-                                <svg class="w-6 h-6 transition-transform duration-200" style="color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                             </summary>`;
+                // --- INICIO DE LA MODIFICACIÓN (Promedio Objetivo) ---
+                finalHtml += `
+                    <summary class="p-4 cursor-pointer flex justify-between items-center rounded-t-lg" style="background-color: ${objetivo.Color_Primario}; color: white; font-weight: bold;">
+                        <span class="text-lg">${objetivo.Nombre_Objetivo}</span>
+                        <!-- Nuevo bloque para el promedio -->
+                        <div class="flex items-center space-x-2">
+                            <span class="text-2xl font-bold">${objetivo.Objective_Average.toFixed(0)}%</span>
+                            <svg class="w-6 h-6 transition-transform duration-200" style="color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </summary>
+                `;
+                // --- FIN DE LA MODIFICACIÓN (Promedio Objetivo) ---
                 finalHtml += `<div class="p-4 space-y-4">`;
 
                 // Bucle 2: Resultados Clave
@@ -56,7 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (strategicKpis.length === 0) return;
 
                     finalHtml += `<div class="p-4 rounded-md" style="background-color: ${objetivo.Color_Secundario};">`;
-                    finalHtml += `<h3 class="text-lg font-semibold" style="color: ${objetivo.Color_Primario};">${kr.Nombre_KR}</h3>`;
+                    // --- INICIO DE LA MODIFICACIÓN (Promedio KR) ---
+                    finalHtml += `
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold" style="color: ${objetivo.Color_Primario};">${kr.Nombre_KR}</h3>
+                            <span class="text-lg font-bold" style="color: ${objetivo.Color_Primario};">${kr.KR_Average.toFixed(0)}%</span>
+                        </div>
+                    `;
+                    // --- FIN DE LA MODIFICACIÓN (Promedio KR) ---
                     finalHtml += `<div class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
                     
                     // Bucle 3: KPIs (ya filtrados)
