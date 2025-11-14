@@ -247,7 +247,17 @@ window.addEventListener('DOMContentLoaded', () => {
                 // Bucle 2: Resultados Clave
                 objetivo.ResultadosClave.forEach(kr => {
                     finalHtml += `<div class="p-4 rounded-md" style="background-color: ${objetivo.Color_Secundario};">`;
-                    finalHtml += `<h3 class="text-lg font-semibold" style="color: ${objetivo.Color_Primario};">${kr.Nombre_KR}</h3>`;
+                    // --- INICIO DE LA MODIFICACIÓN (Fase 1 - Promedio KR) ---
+                    // REEMPLAZAMOS la siguiente línea:
+                    // finalHtml += `<h3 class="text-lg font-semibold" style="color: ${objetivo.Color_Primario};">${kr.Nombre_KR}</h3>`;
+                    // CON ESTE BLOQUE:
+                    finalHtml += `
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold" style="color: ${objetivo.Color_Primario};">${kr.Nombre_KR}</h3>
+                            <span class="text-lg font-bold" style="color: ${objetivo.Color_Primario};">${kr.KR_Average.toFixed(0)}%</span>
+                        </div>
+                    `;
+                    // --- FIN DE LA MODIFICACIÓN (Fase 1 - Promedio KR) ---
                     
                     // Cuadrícula para los KPIs
                     finalHtml += `<div class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
