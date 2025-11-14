@@ -72,5 +72,28 @@
     <script src="/js/shared.js" defer></script>
     <script src="/js/empresa.js" defer></script>
 
+    <!-- --- INICIO DE LA MODIFICACIÓN (Fase 2 - Modal) --- -->
+    <!-- 
+      Añadimos el contenedor del Modal (pantalla completa).
+      Es idéntico al que pusimos en dashboard.html
+    -->
+    <div id="kpi-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <!-- Fondo oscuro (overlay) -->
+        <div id="modal-backdrop" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+        <!-- Contenedor del Modal -->
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
+                
+                <!-- Panel del Modal -->
+                <div id="modal-panel" class="relative w-full max-w-4xl transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all">
+                    <!-- Contenido se inyectará aquí por JS -->
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- --- FIN DE LA MODIFICACIÓN (Fase 2 - Modal) --- -->
+
 </body>
 </html>
