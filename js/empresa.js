@@ -40,7 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Bucle 1: Objetivos
             data.forEach(objetivo => {
-                finalHtml += `<details class="bg-white shadow rounded-lg" open>`;
+                // --- INICIO DE LA MODIFICACIÓN (FASE 2) ---
+                // REEMPLAZAMOS la siguiente línea:
+                // finalHtml += `<details class="bg-white shadow rounded-lg" open>`;
+                // CON ESTA LÍNEA (sin 'open'):
+                finalHtml += `<details class="bg-white shadow rounded-lg">`;
+                // --- FIN DE LA MODIFICACIÓN (FASE 2) ---
                 // --- INICIO DE LA MODIFICACIÓN (Promedio Objetivo) ---
                 finalHtml += `
                     <summary class="p-4 cursor-pointer flex justify-between items-center rounded-t-lg" style="background-color: ${objetivo.Color_Primario}; color: white; font-weight: bold;">

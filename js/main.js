@@ -45,8 +45,10 @@ window.addEventListener('DOMContentLoaded', () => {
             
             // Bucle 1: Objetivos
             data.forEach(objetivo => {
-                // Usamos <details> para el desplegable, 'open' para que esté abierto por defecto
-                finalHtml += `<details class="bg-white shadow rounded-lg" open>`;
+                // --- INICIO DE LA MODIFICACIÓN (FASE 1) ---
+                // Se elimina el atributo 'open' para que inicie cerrado
+                finalHtml += `<details class="bg-white shadow rounded-lg">`;
+                // --- FIN DE LA MODIFICACIÓN (FASE 1) ---
                 
                 // Encabezado del Objetivo (Sumario clickeable)
                 finalHtml += `
