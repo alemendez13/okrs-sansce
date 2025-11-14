@@ -108,9 +108,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         case 5: // Responsable (índice 5)
                             cellClass = 'py-4 px-3 text-sm text-slate-700 whitespace-normal w-1/5';
                             break;
+                        // --- INICIO DE LA MODIFICACIÓN (Ocultar MetodoAgregacion) ---
+                        // 6. ELIMINAMOS el 'case 6' que formateaba la columna 'MetodoAgregacion'
+                        /*
                         case 6: // MetodoAgregacion (índice 6)
                             cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500 w-24';
                             break;
+                        */
+                        // --- FIN DE LA MODIFICACIÓN ---
                         default: 
                             cellClass = 'whitespace-nowrap px-3 py-4 text-sm text-slate-500';
                     }
