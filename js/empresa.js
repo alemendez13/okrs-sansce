@@ -40,8 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function findKpiById(kpiId) {
         for (const objetivo of allOkrData) {
             for (const kr of objetivo.ResultadosClave) {
-                // FILTRO: Solo buscar KPIs 'estratégico'
-                const kpi = kr.KPIs.find(k => k.kpi_id === kpiId && k.kpi_type === 'estratégico');
+                // --- MODIFICACIÓN (Eliminación de filtro) ---
+                // El filtro 'estratégico' se elimina para encontrar CUALQUIER kpi
+                const kpi = kr.KPIs.find(k => k.kpi_id === kpiId);
+                // --- FIN DE LA MODIFICACIÓN ---
                 if (kpi) return kpi;
             }
         }
@@ -140,7 +142,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const periodo = kpi.latestPeriod.Periodo ? new Date(kpi.latestPeriod.Periodo).toLocaleDateString('es-ES', { year: 'numeric', month: 'short' }) : 'N/A';
         const meta = kpi.latestPeriod.Meta || 'N/A';
         const resultado = kpi.latestPeriod.Valor || 'N/A';
-        const kpiTypeClass = 'bg-blue-100 text-blue-800'; // Siempre estratégico
+        
+        // --- MODIFICACIÓN (Color de Título) ---
+        // El color ahora depende del tipo de KPI
+        const kpiTypeClass = kpi.kpi_type === 'estratégico' 
+            ? 'bg-blue-100 text-blue-800' 
+            : (kpi.kpi_type === 'táctico' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800');
+        // --- FIN DE LA MODIFICACIÓN ---
 
         const modalHtml = `
             <div class="bg-white p-6">
@@ -241,11 +249,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Bucle 2: Resultados Clave
                 objetivo.ResultadosClave.forEach(kr => {
+                    
+                    // --- INICIO DE LA MODIFICACIÓN (Eliminación de filtro) ---
                     // 2. FILTRO (CONSERVADO)
                     // Esta página solo muestra KPIs 'estratégico'
-                    const strategicKpis = kr.KPIs.filter(kpi => kpi.kpi_type === 'estratégico');
+                    // const strategicKpis = kr.KPIs.filter(kpi => kpi.kpi_type === 'estratégico'); // SE ELIMINA ESTA LÍNEA
                     
-                    if (strategicKpis.length === 0) return;
+                    // AHORA USAMOS TODOS LOS KPIs que lleguen para este KR
+                    const kpisToShow = kr.KPIs; 
+
+                    // if (strategicKpis.length === 0) return; // SE ELIMINA ESTA LÍNEA
+                    if (kpisToShow.length === 0) return; // Se reemplaza con esta
+                    // --- FIN DE LA MODIFICACIÓN ---
 
                     finalHtml += `<div class="p-4 rounded-md" style="background-color: ${objetivo.Color_Secundario};">`;
                     
@@ -261,8 +276,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // --- MODIFICACIÓN: Bucle 3 (KPIs) ---
                     // Renderizar solo botones
-                    strategicKpis.forEach(kpi => {
-                        const kpiTypeClass = 'bg-blue-100 text-blue-800'; // Siempre estratégico
+                    kpisToShow.forEach(kpi => { // Se usa kpisToShow
+                        // --- MODIFICACIÓN (Color de Título) ---
+                        const kpiTypeClass = kpi.kpi_type === 'estratégico' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : (kpi.kpi_type === 'táctico' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800');
+                        // --- FIN DE LA MODIFICACIÓN ---
 
                         finalHtml += `
                             <button data-kpi-id="${kpi.kpi_id}" class="kpi-button text-left p-4 rounded-lg bg-white shadow-md hover:shadow-lg hover:bg-slate-50 transition-all duration-200 cursor-pointer">
