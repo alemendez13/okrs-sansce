@@ -78,25 +78,28 @@ exports.handler = async function (event, context) {
     let finalHeaders = [...headers];
 
     // =======================================================================
-    // MODIFICACIÓN 5: Ocultar la columna "EsFinanciero"
+    // MODIFICACIÓN 5: Ocultar las columnas "EsFinanciero" y "MetodoAgregacion"
     // =======================================================================
     
-    // 1. Encontrar el índice de la columna a ocultar
+    // 1. Encontrar los índices de las columnas a ocultar (del array original)
     const financieroIndex = finalHeaders.indexOf('EsFinanciero');
+    const metodoIndex = finalHeaders.indexOf('MetodoAgregacion');
 
-    if (financieroIndex > -1) {
-      // 2. Filtrar los headers
-      finalHeaders = finalHeaders.filter((header, index) => index !== financieroIndex);
+    // 2. Filtrar los headers (manera segura filtrando por nombre)
+    finalHeaders = finalHeaders.filter(header => {
+        return header !== 'EsFinanciero' && header !== 'MetodoAgregacion';
+    });
 
-      // 3. Filtrar cada fila de datos
-      finalRows = finalRows.map(row => {
-        // Devuelve una nueva fila sin el elemento en esa posición
-        return row.filter((cell, index) => index !== financieroIndex);
-      });
-    }
+    // 3. Filtrar cada fila de datos (usando los índices originales)
+    //    Esto es seguro porque 'index' siempre se refiere a la posición original
+    finalRows = finalRows.map(row => {
+        return row.filter((cell, index) => {
+            return index !== financieroIndex && index !== metodoIndex;
+        });
+    });
 
     // 7. Volver a armar el array con los headers y filas finales
-    // (Ahora tendrá 7 columnas: 8 originales - 1 oculta)
+    // (Ahora tendrá 6 columnas: 8 originales - 2 ocultas)
     const finalData = [finalHeaders, ...finalRows];
 
     return {
