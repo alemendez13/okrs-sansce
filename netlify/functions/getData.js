@@ -41,7 +41,7 @@ exports.handler = async function (event, context) {
     ] = await Promise.all([
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Resultados!A:G' }),
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Usuarios!A:F' }),
-      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:I' }), // Lee hasta la Col I (KR_ID)
+      sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'CatalogoKPIs!A:J' }), // Lee hasta la Col J (Proceso)
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'ResultadosClave!A:C' }), // NUEVA HOJA
       sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID, range: 'Objetivos!A:D' })  // NUEVA HOJA
     ]);
@@ -99,6 +99,10 @@ exports.handler = async function (event, context) {
           kpi_frequency: kpiInfo.Frecuencia || 'mensual',
           kpi_aggregation: kpiInfo.MetodoAgregacion || 'SUMA',
           kpi_kr_id: kpiInfo.KR_ID, // <-- AÑADIMOS EL VÍNCULO AL KR
+          // --- INICIO MODIFICACIÓN: Mapear Proceso ---
+          // Asumimos que la columna se llama 'Proceso' en el Sheet
+          kpi_process: kpiInfo.Proceso || 'General', 
+          // --- FIN MODIFICACIÓN ---
           results: []
         };
       }
@@ -184,6 +188,9 @@ exports.handler = async function (event, context) {
         // --- INICIO DE LA MODIFICACIÓN (Fase 1.2 - Promedio KPI) ---
         kpi_achievement: kpi_achievement, // <-- Pasamos el % de avance
         // --- FIN DE LA MODIFICACIÓN (Fase 1.2) ---
+        // --- INICIO MODIFICACIÓN ---
+            kpi_process: kpiGroup.kpi_process, // Pasamos el dato al frontend
+            // --- FIN MODIFICACIÓN ---
         
         latestPeriod: {
           Periodo: latestResult.Periodo,

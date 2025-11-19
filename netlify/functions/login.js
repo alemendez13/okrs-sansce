@@ -22,10 +22,13 @@ exports.handler = async function (event, context) {
 
   try {
     // 1. Obtiene el email enviado desde el frontend
-    const { email } = JSON.parse(event.body);
-        if (!email) {
-      return { statusCode: 400, body: 'Email es requerido' };
+    // --- INICIO MODIFICACIÓN: Recibir password ---
+    const { email, password } = JSON.parse(event.body);
+    
+    if (!email || !password) { // Validar ambos campos
+      return { statusCode: 400, body: JSON.stringify({ message: 'Email y contraseña son requeridos' }) };
     }
+    // --- FIN MODIFICACIÓN ---
 
     // 2. Autenticación con Google Sheets
     const auth = new google.auth.GoogleAuth({
@@ -47,7 +50,15 @@ exports.handler = async function (event, context) {
     const users = sheetDataToObject(response.data.values);
 
     // 4. Busca al usuario por su email
-    const foundUser = users.find(user => user.Email && user.Email.toLowerCase() === email.toLowerCase());
+    // --- INICIO MODIFICACIÓN: Comparar password ---
+    // Nota: En producción real se deberían usar hashes (bcrypt), pero aquí comparamos texto plano
+    // según lo que muestra tu hoja de cálculo.
+    const foundUser = users.find(user => 
+        user.Email && 
+        user.Email.toLowerCase() === email.toLowerCase() &&
+        user.Password === password // Comparación directa
+    );
+    // --- FIN MODIFICACIÓN ---
 
     if (foundUser) {
       // 5. Si lo encuentra, devuelve sus datos esenciales
@@ -56,18 +67,20 @@ exports.handler = async function (event, context) {
         body: JSON.stringify({
           UserID: foundUser.UserID,
           Rol: foundUser.Rol,
-          NombreCompleto: foundUser.NombreCompleto
+          NombreCompleto: foundUser.NombreCompleto,
+          EquipoID: foundUser.EquipoID // Útil tenerlo
         }),
       };
     } else {
       // 6. Si no lo encuentra, devuelve un error
       return {
-        statusCode: 404, // Not Found
-        body: JSON.stringify({ message: 'Usuario no encontrado' }),
+        statusCode: 401, // 401 Unauthorized es más correcto que 404 para login fallido
+        body: JSON.stringify({ message: 'Credenciales incorrectas' }),
       };
     }
 
   } catch (error) {
+    console.error(error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Error interno del servidor' }),

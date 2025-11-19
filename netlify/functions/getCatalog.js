@@ -35,7 +35,7 @@ exports.handler = async function (event, context) {
     const [catalogResponse, usersResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        range: 'CatalogoKPIs!A:H', // Lee todas las columnas de la hoja CatalogoKPIs
+        range: 'CatalogoKPIs!A:J', // Lee todas las columnas de la hoja CatalogoKPIs
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
