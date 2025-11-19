@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. Toma el email del campo de texto
         const email = document.getElementById('email').value;
+        // --- INICIO MODIFICACIÓN: Obtener password ---
+        const password = document.getElementById('password').value;
+        // --- FIN MODIFICACIÓN ---
 
         try {
             // 2. Llama a la función login.js con fetch
@@ -22,14 +25,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email: email }), // Envía el email en el cuerpo de la petición
+                // --- INICIO MODIFICACIÓN: Enviar password en JSON ---
+                body: JSON.stringify({ email: email, password: password }),
+                // --- FIN MODIFICACIÓN ---
             });
 
             const result = await response.json();
 
             // Si la respuesta no es exitosa (ej. 404, 500), muestra el error
             if (!response.ok) {
-                errorMessage.textContent = result.message || 'Ocurrió un error.';
+                errorMessage.textContent = result.message || 'Error de credenciales.';
                 errorMessage.style.display = 'block';
                 return;
             }
